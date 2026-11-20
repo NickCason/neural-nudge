@@ -12,6 +12,25 @@
   const name = $derived(game.level.errorName === 'loss' ? 'Loss' : 'Error');
   const stepping = $derived(game.tools.step || game.tools.nudge);
 
+  /** How the planned trips turn out, in a headline figure and a few words. */
+  const trip = $derived.by(() => {
+    const trips = game.trips;
+    if (!trips.length) return null;
+    const met = trips.filter((t) => t.met).length;
+    if (trips.length > 1) return { figure: String(met), words: `of ${trips.length} starts reach the lamp`, met: met === trips.length };
+    const t = trips[0];
+    const seconds = (frames: number) => (frames / 30).toFixed(1);
+    if (goal.kind === 'park') {
+      if (t.met) return { figure: t.endDistance.toFixed(2), words: 'from the lamp, at rest inside the ring', met: true };
+      if (t.crashed === 'lamp') return { figure: 'Hit', words: `the lamp after ${seconds(t.frames.length)} seconds`, met: false };
+      if (t.crashed === 'wall') return { figure: 'Wall', words: `reached after ${seconds(t.frames.length)} seconds`, met: false };
+      if (t.endSpeed >= 0.05) return { figure: t.endDistance.toFixed(2), words: 'from the lamp, and still moving', met: false };
+      return { figure: t.endDistance.toFixed(2), words: 'from the lamp when it stops, outside the ring', met: false };
+    }
+    if (t.met) return { figure: seconds(t.arrived), words: 'seconds to reach the lamp', met: true };
+    return { figure: t.closest.toFixed(2), words: 'is the nearest it gets to the lamp', met: false };
+  });
+
   const spark = $derived.by(() => {
     const shown = game.history.slice(-150).map((v) => Math.log10(Math.max(v, 1e-9)));
     if (shown.length < 2) return '';
@@ -24,7 +43,12 @@
 </script>
 
 <div class="readout">
-  {#if counting}
+  {#if trip}
+    <div class="big">
+      <span class="num figure" class:met={trip.met}>{trip.figure}</span>
+      <span class="of">{trip.words}</span>
+    </div>
+  {:else if counting}
     <div class="big">
       <span class="num figure" class:met={game.correct === game.level.data.length}>{game.correct}</span>
       <span class="of">of {game.level.data.length} dots right</span>

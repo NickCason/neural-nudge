@@ -2,6 +2,7 @@
   import { game } from './game.svelte';
   import { neuronName } from './ui/names';
   import Burst from './ui/Burst.svelte';
+  import DrivePlot from './ui/DrivePlot.svelte';
   import HillPlot from './ui/HillPlot.svelte';
   import Inspector from './ui/Inspector.svelte';
   import Lesson from './ui/Lesson.svelte';
@@ -68,6 +69,8 @@
       <div class="plots">
         {#if game.level.view === 'line'}
           <LinePlot />
+        {:else if game.level.view === 'drive'}
+          <DrivePlot />
         {:else}
           <PlanePlot />
         {/if}

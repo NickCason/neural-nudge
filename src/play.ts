@@ -46,6 +46,9 @@ export function goalMet(level: Level, loss: number, correct: number): boolean {
     case 'allCorrect':
       return correct === level.data.length;
     case 'impossible':
+    // Driving levels are won by a run of the cart, not by the dials alone.
+    case 'arrive':
+    case 'park':
       return false;
   }
 }

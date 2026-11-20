@@ -1,8 +1,10 @@
 import { countCorrect, evaluate, paramLayout } from './engine/net';
 import type { ParamInfo } from './engine/net';
-import { levels } from './levels/act1';
+import { levels } from './levels';
 import type { Level, Tools } from './levels/types';
 import { descend, freshParams, goalMet, seedFor, specFor } from './play';
+import { DT, trips } from './sim/cart';
+import type { Frame, Trip } from './sim/cart';
 
 const STORE_KEY = 'nudge.done.v1';
 const NO_TOOLS: Tools = {
@@ -15,6 +17,7 @@ const NO_TOOLS: Tools = {
   shuffle: false,
   grow: false,
   lines: false,
+  go: false,
 };
 
 /** How far a dial can be turned by hand. Training may take values past this. */
@@ -55,12 +58,19 @@ class Game {
   spotlight = $state<number[] | null>(null);
   /** Hidden neuron being pointed at, so its line and its circle can light up together. */
   hover = $state<number | null>(null);
+  /** The cart is being driven along the trips worked out for it. */
+  driving = $state(false);
+  /** How far through the trip the cart is, in frames. */
+  clock = $state(0);
+  /** The last run finished without meeting the goal. */
+  fellShort = $state(false);
   done = $state<string[]>(loadDone());
   unlockAll = $state(false);
 
   #shuffles = 0;
   #startLoss = 0;
   #frame = 0;
+  #driveFrame = 0;
   #last = 0;
   #owed = 0;
 
@@ -78,6 +88,18 @@ class Game {
   evaluation = $derived(evaluate(this.spec, this.params, this.level.data, this.level.loss));
   loss = $derived(this.evaluation.loss);
   correct = $derived(countCorrect(this.spec, this.params, this.level.data));
+  /** Where the cart will go from each starting place, with the dials as they are. */
+  trips: Trip[] = $derived.by(() => {
+    const level = this.level;
+    if (!level.drive) return [];
+    return trips(this.spec, this.params, level.drive, level.goal.kind === 'park' ? 'park' : 'arrive');
+  });
+  driveMet = $derived(this.trips.length > 0 && this.trips.every((t) => t.met));
+  /** What the cart's eyes and wheels are doing at this moment of the first trip. */
+  live: Frame | null = $derived.by(() => {
+    const first = this.trips[0];
+    return first ? first.frames[Math.min(this.clock, first.frames.length - 1)] : null;
+  });
   outOfSteps = $derived(
     !this.solved && this.level.stepBudget !== undefined && this.steps >= this.level.stepBudget,
   );
@@ -130,6 +152,7 @@ class Game {
     this.focus = null;
     this.hover = null;
     this.spotlight = null;
+    this.park();
     this.#shuffles = 0;
     this.trail = level.hill ? [[level.start[level.hill.x], level.start[level.hill.y]]] : [];
     this.#startLoss = evaluate(specFor(level, this.hiddenSize), this.params, level.data, level.loss).loss;
@@ -193,6 +216,42 @@ class Game {
     this.history.push(Number.isFinite(loss) ? loss : 1e6);
     if (this.history.length > 600) this.history.splice(0, this.history.length - 600);
     this.changed();
+  }
+
+  /** Set the cart off along its trips, or stop it and put it back. */
+  setOff() {
+    if (!this.tools.go) return;
+    if (this.driving) {
+      this.park();
+      return;
+    }
+    const frames = Math.max(...this.trips.map((t) => t.frames.length));
+    this.clock = 0;
+    this.fellShort = false;
+    this.driving = true;
+    this.effort++;
+    const began = performance.now();
+    const tick = (now: number) => {
+      if (!this.driving) return;
+      // The first frame can be stamped a hair before the press, so never count backwards.
+      this.clock = Math.max(0, Math.min(frames - 1, Math.floor((now - began) / 1000 / DT)));
+      if (this.clock >= frames - 1) {
+        this.driving = false;
+        if (this.driveMet) this.win();
+        else this.fellShort = true;
+        return;
+      }
+      this.#driveFrame = requestAnimationFrame(tick);
+    };
+    this.#driveFrame = requestAnimationFrame(tick);
+  }
+
+  /** Put the cart back at its starting place. */
+  private park() {
+    cancelAnimationFrame(this.#driveFrame);
+    this.driving = false;
+    this.clock = 0;
+    this.fellShort = false;
   }
 
   toggleRun() {
@@ -267,6 +326,8 @@ class Game {
   }
 
   private changed() {
+    // A cart mid-run goes back to the start: the path it was following no longer exists.
+    if (this.level.drive && (this.driving || this.clock > 0)) this.park();
     const hill = this.level.hill;
     if (hill && this.hiddenSize === 0) {
       const point: [number, number] = [this.params[hill.x], this.params[hill.y]];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { levels } from '../levels/act1';
+import { levels } from '../levels';
 import { N, SHAPE, Terrain } from './terrain';
 
 const hills = levels.filter((l) => l.hill);

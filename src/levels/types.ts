@@ -1,4 +1,5 @@
 import type { Activation, LossKind, NetSpec, Sample } from '../engine/net';
+import type { DriveSpec } from '../sim/cart';
 
 export interface Tools {
   /** Turn dials directly. */
@@ -18,6 +19,8 @@ export interface Tools {
   grow: boolean;
   /** Drag the hidden neurons' lines around on the plot. */
   lines: boolean;
+  /** Set the cart driving. */
+  go: boolean;
 }
 
 export type ToolName = keyof Tools;
@@ -26,7 +29,11 @@ export type Goal =
   | { kind: 'loss'; below: number }
   | { kind: 'allCorrect' }
   /** Can't be met. The player wins by saying so. */
-  | { kind: 'impossible' };
+  | { kind: 'impossible' }
+  /** The cart reaches the lamp from every starting place. */
+  | { kind: 'arrive' }
+  /** The cart comes to rest inside the ring round the lamp. */
+  | { kind: 'park' };
 
 export interface Level {
   id: string;
@@ -46,8 +53,12 @@ export interface Level {
   locked?: number[];
   data: Sample[];
 
-  /** 'line': one input against one output. 'plane': two inputs, coloured by output. */
-  view: 'line' | 'plane';
+  /** 'line': one input against one output. 'plane': two inputs, coloured by output. 'drive': a cart on a floor. */
+  view: 'line' | 'plane' | 'drive';
+  /** The floor, the lamp and the starting places, for levels where the network drives a cart. */
+  drive?: DriveSpec;
+  /** What to call the inputs and outputs when they are parts of a machine rather than numbers. */
+  names?: { inputs: string[]; outputs: string[] };
   /** Draw the loss as a landscape over two parameters. */
   hill?: { x: number; y: number; range: number };
 

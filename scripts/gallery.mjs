@@ -214,4 +214,38 @@ await page.waitForTimeout(1000);
 await page.locator('svg.net g.neuron').nth(2).hover();
 await shoot(12, 'fence-it-in');
 
+/** Set a dial to an exact value by picking it and typing in the panel on the left. */
+async function setDial(i, value) {
+  await dials().nth(i).locator('.face').click();
+  const input = page.locator('.inspector input');
+  await input.fill(String(value));
+  await input.press('Enter');
+}
+
+// 13: wires crossed, cart part-way to the lamp
+await open(13);
+for (const [i, v] of [[0, 0], [1, 1], [3, 1], [4, 0]]) await setDial(i, v);
+await page.mouse.move(700, 860);
+await button('Go').click();
+await page.waitForTimeout(3600);
+await shoot(13, 'two-eyes-two-wheels');
+
+// 14: three carts homing in, one of them having turned round in the dark
+await open(14);
+await setDial(2, 0.15);
+await setDial(5, 0.3);
+await page.mouse.move(700, 860);
+await button('Go').click();
+await page.waitForTimeout(4200);
+await shoot(14, 'in-the-dark');
+
+// 15: parked inside the ring
+await open(15);
+for (const [i, v] of [[0, -1], [1, 0], [3, 0], [4, -1], [2, 0.65], [5, 0.65]]) await setDial(i, v);
+await page.mouse.move(700, 860);
+await button('Go').click();
+await page.locator('.goal.solved').waitFor({ timeout: 30000 });
+await settle();
+await shoot(15, 'stop-at-the-lamp');
+
 await browser.close();

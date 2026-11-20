@@ -261,13 +261,66 @@ console.log('12 Fence it in');
   await page.locator('svg.net g.neuron').nth(1).hover();
   check((await page.locator('.plane .hidden-line.lit').count()) === 1, 'pointing at a hidden neuron lights up its line');
   await page.mouse.move(5, 5);
+}
+await next('Two eyes, two wheels');
+
+/** Set a dial to an exact value by picking it and typing in the panel on the left. */
+async function setDial(i, value) {
+  await dials().nth(i).locator('.face').click();
+  const input = page.locator('.inspector input');
+  await input.fill(String(value));
+  await input.press('Enter');
+}
+const headline = () => page.locator('.readout .big').innerText();
+
+console.log('13 Two eyes, two wheels');
+{
+  check((await dials().count()) === 6, 'two eyes into two wheels makes six dials');
+  check((await headline()).includes('nearest it gets'), 'as wired at the start, the planned path misses the lamp');
+  await button('Go').click();
+  await page.getByText("didn't get there").waitFor({ timeout: 20000 });
+  check(!(await solved()), 'driving the starting wiring does not solve it, and says so');
+  // cross the wires: each eye drives the wheel on the other side
+  await setDial(0, 0);
+  await setDial(1, 1);
+  await setDial(3, 1);
+  await setDial(4, 0);
+  check((await headline()).includes('seconds to reach the lamp'), 'with the wires crossed, the planned path reaches the lamp');
+  check(!(await solved()), 'but it is not solved until the cart is driven');
+  await button('Go').click();
+  await page.locator('.goal.solved').waitFor({ timeout: 20000 });
+  check(true, 'pressing Go drives the cart to the lamp');
+}
+await next('In the dark');
+
+console.log('14 In the dark');
+{
+  check((await headline()).startsWith('2'), 'two of the three starts already work');
+  await setDial(2, 0.15);
+  await setDial(5, 0.3);
+  check((await headline()).startsWith('3'), 'unequal biases bring in the start that faces away');
+  await button('Go').click();
+  await page.locator('.goal.solved').waitFor({ timeout: 25000 });
+  check(true, 'all three carts reach the lamp');
+}
+await next('Stop at the lamp');
+
+console.log('15 Stop at the lamp');
+{
+  check((await headline()).startsWith('Hit'), 'as wired at the start, it rams the lamp');
+  for (const [i, v] of [[0, -1], [1, 0], [3, 0], [4, -1], [2, 0.65], [5, 0.65]]) await setDial(i, v);
+  check((await headline()).includes('at rest inside the ring'), 'with each eye braking its own wheel, it plans to stop inside the ring');
+  await button('Go').click();
+  await page.locator('.goal.solved').waitFor({ timeout: 30000 });
+  check(true, 'the cart comes to rest by the lamp');
+  await page.waitForTimeout(2600);
   check(await page.getByText("That's every level so far").isVisible(), 'the last level says what comes next');
-  await page.screenshot({ path: 'shots/played-12.png' });
+  await page.screenshot({ path: 'shots/played-15.png' });
 }
 
 await page.reload();
 await page.waitForSelector('svg.net');
-check((await page.locator('.pip.done').count()) === 12, 'progress survives a reload');
+check((await page.locator('.pip.done').count()) === 15, 'progress survives a reload');
 
 console.log(problems.length ? `console problems:\n${problems.join('\n')}` : 'no console errors');
 await browser.close();

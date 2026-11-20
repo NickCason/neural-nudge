@@ -19,7 +19,7 @@
       <h2 class="hand">Solved</h2>
       <p>{game.level.winText}</p>
       {#if game.isLast}
-        <p class="after">That's every level so far. Next up: networks that steer things.</p>
+        <p class="after">That's every level so far. Next up: teaching the cart by driving it yourself.</p>
       {:else}
         <button class="next" onclick={() => game.next()}>Next level</button>
       {/if}
@@ -32,6 +32,9 @@
         </p>
       {:else if game.outOfSteps}
         <p class="trouble">Out of steps. Start over and try a different step size.</p>
+      {/if}
+      {#if game.fellShort}
+        <p class="trouble">That run didn't get there. Keep nudging: the dashed line shows where it will go.</p>
       {/if}
       {#if canCallIt}
         <button class="next" onclick={() => game.callImpossible()}>This can't be done</button>

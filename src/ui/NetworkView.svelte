@@ -88,6 +88,9 @@
 
   /** Every value inside the network for the sample being inspected. */
   const probed = $derived.by(() => {
+    // A cart is always being watched: what its eyes see right now runs through the network.
+    const live = game.live;
+    if (live) return { sample: { x: [...live.eyes], y: [] as number[] }, trace: trace(game.spec, game.params, live.eyes) };
     if (game.probe === null) return null;
     const sample = game.level.data[game.probe];
     if (!sample) return null;
@@ -95,6 +98,8 @@
   });
 
   const output = $derived(columns[columns.length - 1][0]);
+  const outputs = $derived(columns[columns.length - 1]);
+  const names = $derived(game.level.names);
 
   function signColor(v: number): string {
     if (Math.abs(v) < 0.005) return 'var(--dust)';
@@ -118,7 +123,7 @@
     scale === 'full'
       ? { half: 7.5, tall: 5.5, off: 13, gap: 7.5, hitW: 34, hitH: 20 }
       : medium
-        ? { half: 5.5, tall: 4, off: 9, gap: 5.5, hitW: 26, hitH: 15 }
+        ? { half: 5.5, tall: 4, off: 7.5, gap: 5.5, hitW: 26, hitH: 14 }
         : { half: 4.5, tall: 3.2, off: 8, gap: 4.5, hitW: 22, hitH: 13 },
   );
 
@@ -252,6 +257,8 @@
   const pictures = $derived.by(() => {
     const spec = game.spec;
     const params = [...game.params];
+    // A cart's neurons show their live speed instead of a picture.
+    if (game.level.view === 'drive') return { images: null, curves: null };
     const flat = spec.layers.flatMap((layer, l) => Array.from({ length: layer.size }, (_, j) => ({ l, j, act: layer.act })));
     if (spec.inputs === 2) {
       const images = flat.map(() => new ImageData(THUMB, THUMB));
@@ -347,7 +354,7 @@
         wires,
         inputs: columns[0].map((n) => ({ x: n.x, y: n.y, r: inputR })),
         neurons: neurons.map((n, k) => ({ ...n, thumb: thumbs[k] ?? null })),
-        out: { x: output.x + nodeR, y: output.y, length: outLength },
+        outs: outputs.map((n) => ({ x: n.x + nodeR, y: n.y, length: outLength })),
         training,
       });
       frame = requestAnimationFrame(tick);
@@ -376,8 +383,12 @@
       if (e.target === e.currentTarget) game.selected = null;
     }}
   >
-    <!-- the guess leaving the network -->
-    {#if probed}
+    <!-- what leaves the network -->
+    {#if names}
+      {#each outputs as node (node.row)}
+        <text class="label" x={node.x + nodeR + 8} y={node.y - 13}>{names.outputs[node.row]}</text>
+      {/each}
+    {:else if probed}
       {@const guess = probed.trace.a[probed.trace.a.length - 1][0]}
       <text class="label" x={output.x + nodeR + 8} y={output.y - 13}>
         guess <tspan class="num value">{num(guess)}</tspan>
@@ -393,6 +404,9 @@
     {#each columns[0] as node (node.row)}
       <g transform="translate({node.x},{node.y})">
         <circle class="input" r={inputR} />
+        {#if names}
+          <text class="label over" y={-inputR - 8}>{names.inputs[node.row]}</text>
+        {/if}
         {#if probed}
           <text class="num inside" class:small={compact} dy="0.35em">{num(probed.sample.x[node.row])}</text>
         {:else}
@@ -523,7 +537,7 @@
               <g
                 class="step"
                 class:lit
-                class:always={scale === 'full'}
+                class:always={scale !== 'small'}
                 class:info={!free && !only}
                 transform="translate({at.x},{at.y})"
                 aria-hidden="true"
@@ -571,6 +585,10 @@
   .label {
     fill: var(--dust);
     font-size: 13px;
+  }
+
+  .label.over {
+    text-anchor: middle;
   }
 
   .label .value {

@@ -2,10 +2,13 @@
 
 Learn how neural networks work by being the optimizer first.
 
-You start with one neuron and one dial, and tune it by hand. Each level takes something you were
+You start with one neuron and one dial, and nudge it by hand. Each level takes something you were
 doing manually and hands it to the machine: first you see the loss as a landscape, then you get
 the slope under your feet, then a button that steps downhill for you. By the end of the first act
 you have hit the wall a single neuron can't get past, and built the hidden layer that gets past it.
+
+The second act gives the network a body: a cart with two light-sensing eyes and two wheels. You
+wire it to chase a lamp, to find one it can't see, and to stop beside it.
 
 The network is always on screen. Every weight and bias is a dial you can read, drag, or type into,
 and hovering a data point sends it through the network so you can watch the numbers.
@@ -34,6 +37,8 @@ npm run shots      # screenshot every level into shots/
   It is a layered implementation, not a general autograd graph.
 - `src/levels/` holds the levels as plain data: network shape, starting values, examples,
   which tools are unlocked, and the goal.
+- `src/sim/cart.ts` is the cart: what its eyes see, how its wheels move it, and a whole trip worked
+  out in advance so the path can be drawn before it drives.
 - `src/play.ts` holds the rules (stepping, goals, growing the network) with no UI in it.
 - `src/game.svelte.ts` is the single piece of live state the interface reads.
 - `src/ui/` is the interface: the network view, the three plots, lesson, tools, inspector.

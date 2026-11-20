@@ -43,7 +43,8 @@ export interface Scene {
   wires: WirePaint[];
   inputs: { x: number; y: number; r: number }[];
   neurons: NeuronPaint[];
-  out: { x: number; y: number; length: number };
+  /** One for each thing leaving the network. */
+  outs: { x: number; y: number; length: number }[];
   /** 0..1: how hard the network is being trained right now. */
   training: number;
 }
@@ -102,11 +103,12 @@ export function paint(ctx: CanvasRenderingContext2D, scene: Scene) {
     glowLine(ctx, w.x1, w.y1, w.x2, w.y2, ink, width, 0.3 + 0.7 * Math.min(1, Math.abs(w.value)));
   }
 
-  // the guess leaving the network
-  const o = scene.out;
-  glowLine(ctx, o.x, o.y, o.x + o.length, o.y, INK.chalk, 1.6, 0.55);
-  glowLine(ctx, o.x + o.length - 8, o.y - 6, o.x + o.length, o.y, INK.chalk, 1.6, 0.55);
-  glowLine(ctx, o.x + o.length - 8, o.y + 6, o.x + o.length, o.y, INK.chalk, 1.6, 0.55);
+  // what leaves the network
+  for (const o of scene.outs) {
+    glowLine(ctx, o.x, o.y, o.x + o.length, o.y, INK.chalk, 1.6, 0.55);
+    glowLine(ctx, o.x + o.length - 8, o.y - 6, o.x + o.length, o.y, INK.chalk, 1.6, 0.55);
+    glowLine(ctx, o.x + o.length - 8, o.y + 6, o.x + o.length, o.y, INK.chalk, 1.6, 0.55);
+  }
 
   if (scene.motion) {
     // signal flowing forward: more of it, and faster, down the heavier wires
@@ -124,9 +126,11 @@ export function paint(ctx: CanvasRenderingContext2D, scene: Scene) {
         spark(ctx, w.x1 + (w.x2 - w.x1) * t, w.y1 + (w.y2 - w.y1) * t, size, ink, fade * presence);
       }
     }
-    for (let k = 0; k < 2; k++) {
-      const t = frac(time * 0.5 + k / 2);
-      spark(ctx, o.x + o.length * t, o.y, 1.8, INK.chalk, Math.sin(Math.PI * t) * 0.8);
+    for (const o of scene.outs) {
+      for (let k = 0; k < 2; k++) {
+        const t = frac(time * 0.5 + k / 2);
+        spark(ctx, o.x + o.length * t, o.y, 1.8, INK.chalk, Math.sin(Math.PI * t) * 0.8);
+      }
     }
 
     // blame flowing backward while training: brightest on the dials that matter most
@@ -140,9 +144,11 @@ export function paint(ctx: CanvasRenderingContext2D, scene: Scene) {
           spark(ctx, w.x1 + (w.x2 - w.x1) * t, w.y1 + (w.y2 - w.y1) * t, scene.compact ? 1.8 : 2.6, INK.sky, fade * strength);
         }
       }
-      for (let k = 0; k < 2; k++) {
-        const t = 1 - frac(time * 0.95 + k / 2);
-        spark(ctx, o.x + o.length * t, o.y, 2.2, INK.sky, Math.sin(Math.PI * t) * scene.training);
+      for (const o of scene.outs) {
+        for (let k = 0; k < 2; k++) {
+          const t = 1 - frac(time * 0.95 + k / 2);
+          spark(ctx, o.x + o.length * t, o.y, 2.2, INK.sky, Math.sin(Math.PI * t) * scene.training);
+        }
       }
     }
   }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { countCorrect, evaluate, paramCount } from '../engine/net';
 import { descend, freshParams, goalMet, seedFor, specFor } from '../play';
-import { levels } from './act1';
+import { levels } from './index';
 import type { Level } from './types';
 
 const byId = (id: string): Level => {

@@ -16,7 +16,7 @@ const corners = clumps(31, [
 ]);
 
 /** Act 1: you are the optimizer. */
-export const levels: Level[] = [
+export const act1: Level[] = [
   {
     id: 'one-dial',
     title: 'One dial',

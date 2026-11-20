@@ -40,6 +40,12 @@
     </div>
   {/if}
 
+  {#if game.tools.go}
+    <button class="tool primary" onclick={() => game.setOff()}>
+      {@render tag('go')}{game.driving ? 'Stop' : 'Go'}
+    </button>
+  {/if}
+
   {#if game.tools.step}
     <button class="tool" disabled={!game.canStep || game.running} onclick={() => game.step()}>
       {@render tag('step')}Step

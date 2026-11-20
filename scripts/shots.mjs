@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 const base = process.argv[2] ?? 'http://127.0.0.1:8097/';
 const width = Number(process.argv[3] ?? 1440);
 const height = Number(process.argv[4] ?? 900);
-const levels = (process.argv[5] ?? '1,2,3,4,5,6,7,8,9,10,11,12').split(',').map(Number);
+const levels = (process.argv[5] ?? '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15').split(',').map(Number);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
