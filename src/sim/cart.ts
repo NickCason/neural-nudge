@@ -56,6 +56,19 @@ export const RING = 0.34;
 export const LAMP = 0.07;
 /** A wheel turning slower than this counts as stopped. */
 export const STILL = 0.05;
+/** How many frames in a row the wheels must stay that slow before the cart counts as parked. */
+export const SETTLE = 30;
+
+/** Why a trip fell short, for telling the player what actually went wrong. */
+export type Shortfall = 'lamp' | 'wall' | 'rolling-inside' | 'rolling-outside' | 'stopped-outside' | 'never-near';
+
+export function shortfall(t: Trip, goal: DriveGoal): Shortfall | null {
+  if (t.met) return null;
+  if (t.crashed) return t.crashed;
+  if (goal === 'arrive') return 'never-near';
+  if (t.endSpeed >= STILL) return t.endDistance < RING ? 'rolling-inside' : 'rolling-outside';
+  return 'stopped-outside';
+}
 
 /** Each eye looks this far to its own side of straight ahead. */
 export const EYE_ANGLE = 0.7;
@@ -92,6 +105,7 @@ export function trip(spec: NetSpec, params: ArrayLike<number>, drive: DriveSpec,
   let arrived = -1;
   let crashed: Trip['crashed'] = null;
   let closest = Infinity;
+  let quiet = 0;
 
   for (let i = 0; i <= steps; i++) {
     const eyes = sense(pose, drive.lamp);
@@ -113,6 +127,9 @@ export function trip(spec: NetSpec, params: ArrayLike<number>, drive: DriveSpec,
       crashed = 'wall';
       break;
     }
+    // Parked: both wheels have been as good as still for a full second, so nothing more will happen.
+    quiet = Math.max(Math.abs(wheels[0]), Math.abs(wheels[1])) < STILL ? quiet + 1 : 0;
+    if (goal === 'park' && quiet >= SETTLE) break;
 
     const forward = ((wheels[0] + wheels[1]) / 2) * SPEED;
     const turn = ((wheels[1] - wheels[0]) / TRACK) * SPEED;

@@ -84,7 +84,7 @@ export const act2: Level[] = [
     start: [0, 1, 0.25, 1, 0, 0.25],
     data: [],
     view: 'drive',
-    drive: { lamp: { x: 0.45, y: 0.4 }, starts: [{ x: -0.7, y: -0.7, a: deg(60) }], seconds: 16 },
+    drive: { lamp: { x: 0.45, y: 0.4 }, starts: [{ x: -0.7, y: -0.7, a: deg(60) }], seconds: 24 },
     names,
     goal: { kind: 'park' },
     tools: { drag: true, go: true },

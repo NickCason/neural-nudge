@@ -1,6 +1,6 @@
 <script lang="ts">
   import { game } from '../game.svelte';
-  import { EYE_ANGLE, LAMP, REACH, RING } from '../sim/cart';
+  import { EYE_ANGLE, LAMP, REACH, RING, STILL } from '../sim/cart';
   import type { Pose } from '../sim/cart';
 
   // The floor seen from above: the lamp, the path the cart is going to take, and the cart.
@@ -23,6 +23,8 @@
       return {
         k,
         met: t.met,
+        // Time ran out with the wheels still turning: the path doesn't end here, it's cut off.
+        rolling: !t.met && !t.crashed && t.endSpeed >= STILL,
         planned: points.join(' '),
         driven: points.slice(0, at + 1).join(' '),
         frame: t.frames[at],
@@ -70,7 +72,11 @@
         <polyline class="driven" points={r.driven} />
       {/if}
       <!-- how the planned trip ends -->
-      {#if !r.met}
+      {#if r.rolling}
+        <g transform={place(r.end)} class="miss rolling">
+          <path d="M-5,-6 L5,0 L-5,6" />
+        </g>
+      {:else if !r.met}
         <g transform="translate({px(r.end.x)},{py(r.end.y)})" class="miss">
           <path d="M-4,-4 L4,4 M-4,4 L4,-4" />
         </g>
@@ -173,6 +179,11 @@
     stroke: var(--rose);
     stroke-width: 2.5;
     stroke-linecap: round;
+  }
+
+  .miss.rolling path {
+    fill: none;
+    stroke-linejoin: round;
   }
 
   .sight {

@@ -290,7 +290,7 @@ console.log('13 Two eyes, two wheels');
   check((await dials().count()) === 6, 'two eyes into two wheels makes six dials');
   check((await headline()).includes('nearest it gets'), 'as wired at the start, the planned path misses the lamp');
   await button('Go').click();
-  await page.getByText("didn't get there").waitFor({ timeout: 20000 });
+  await page.locator('.goal .trouble').waitFor({ timeout: 20000 });
   check(!(await solved()), 'driving the starting wiring does not solve it, and says so');
   // cross the wires: each eye drives the wheel on the other side
   await setDial(0, 0);
@@ -320,6 +320,13 @@ await next('Stop at the lamp');
 console.log('15 Stop at the lamp');
 {
   check((await headline()).startsWith('Hit'), 'as wired at the start, it rams the lamp');
+  // a cart that ends up circling inside the ring is told that, not just "no"
+  for (const [i, v] of [[0, -2], [1, -1], [2, 1], [3, 1], [4, 0], [5, 0.25]]) await setDial(i, v);
+  check((await headline()).includes('in the ring but still rolling'), 'a cart circling in the ring reads as still rolling');
+  await button('Go').click();
+  await page.getByText('wheels were still turning').waitFor({ timeout: 40000 });
+  check(!(await solved()), 'and driving it says why that is not parked');
+  await page.screenshot({ path: 'shots/rolling-15.png' });
   for (const [i, v] of [[0, -1], [1, 0], [3, 0], [4, -1], [2, 0.65], [5, 0.65]]) await setDial(i, v);
   check((await headline()).includes('at rest inside the ring'), 'with each eye braking its own wheel, it plans to stop inside the ring');
   await button('Go').click();

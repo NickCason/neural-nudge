@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { levels } from '../levels';
 import type { Level } from '../levels/types';
-import { sense, trips } from './cart';
+import { sense, shortfall, trips } from './cart';
 
 const byId = (id: string): Level => levels.find((l) => l.id === id)!;
 const goalOf = (level: Level) => (level.goal.kind === 'park' ? 'park' : 'arrive');
@@ -77,6 +77,20 @@ describe('stop at the lamp', () => {
     for (const [w, b] of [[-0.6, 0.4], [-1, 0.6], [-1, 0.7], [-0.8, 0.5], [-1.5, 1], [-2, 1.2]]) {
       expect(met(level, [w, 0, b, 0, w, b]), `${w} / ${b}`).toBe(true);
     }
+  });
+  it('ends the trip once the cart has been still for a second', () => {
+    const [t] = run(level, [-1, 0, 0.6, 0, -1, 0.6]);
+    expect(t.met).toBe(true);
+    expect(t.frames.length).toBeLessThan(24 * 30);
+  });
+  it('gives a slow settler the time to finish', () => {
+    // Was 0.17 from the lamp and just over the speed limit when the clock used to stop at 16 seconds.
+    expect(met(level, [-2, 0, 1, 1, -1, 0.4])).toBe(true);
+  });
+  it('says why a cart circling inside the ring has not parked', () => {
+    const [t] = run(level, [-2, -1, 1, 1, 0, 0.25]);
+    expect(t.met).toBe(false);
+    expect(shortfall(t, 'park')).toBe('rolling-inside');
   });
   it('drives off when the braking wires are crossed', () => {
     expect(run(level, [0, -1, 0.4, -1, 0, 0.4])[0].crashed).toBe('wall');

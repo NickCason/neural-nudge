@@ -24,7 +24,7 @@
       if (t.met) return { figure: t.endDistance.toFixed(2), words: 'from the lamp, at rest inside the ring', met: true };
       if (t.crashed === 'lamp') return { figure: 'Hit', words: `the lamp after ${seconds(t.frames.length)} seconds`, met: false };
       if (t.crashed === 'wall') return { figure: 'Wall', words: `reached after ${seconds(t.frames.length)} seconds`, met: false };
-      if (t.endSpeed >= 0.05) return { figure: t.endDistance.toFixed(2), words: 'from the lamp, and still moving', met: false };
+      if (t.endSpeed >= 0.05) return { figure: t.endDistance.toFixed(2), words: t.endDistance < 0.34 ? 'from the lamp, in the ring but still rolling' : 'from the lamp, and still rolling', met: false };
       return { figure: t.endDistance.toFixed(2), words: 'from the lamp when it stops, outside the ring', met: false };
     }
     if (t.met) return { figure: seconds(t.arrived), words: 'seconds to reach the lamp', met: true };
