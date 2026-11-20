@@ -59,6 +59,12 @@ export interface Level {
   drive?: DriveSpec;
   /** What to call the inputs and outputs when they are parts of a machine rather than numbers. */
   names?: { inputs: string[]; outputs: string[] };
+  /**
+   * Draw the dials as a point in a box: three parameters, one along each edge, with the loss
+   * shown as shells of equal value. Any level can use it by naming three dials; the rest are
+   * held where they are.
+   */
+  box?: { axes: [number, number, number]; range: number; names: [string, string, string] };
   /** Draw the loss as a landscape over two parameters. */
   hill?: { x: number; y: number; range: number };
 

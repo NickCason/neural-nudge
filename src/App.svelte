@@ -1,6 +1,7 @@
 <script lang="ts">
   import { game } from './game.svelte';
   import { neuronName } from './ui/names';
+  import BoxPlot from './ui/BoxPlot.svelte';
   import Burst from './ui/Burst.svelte';
   import DrivePlot from './ui/DrivePlot.svelte';
   import HillPlot from './ui/HillPlot.svelte';
@@ -58,6 +59,9 @@
       <ToolTray />
       {#if showHill}
         <div class="hill-wrap"><HillPlot /></div>
+      {/if}
+      {#if game.level.box && game.hiddenSize === 0}
+        <div class="box-wrap"><BoxPlot /></div>
       {/if}
       {#if showTally}
         <Tally />
@@ -177,6 +181,12 @@
     display: grid;
     gap: 1.25rem;
     align-content: start;
+  }
+
+  .box-wrap {
+    max-width: 20rem;
+    justify-self: center;
+    width: 100%;
   }
 
   .hill-wrap {

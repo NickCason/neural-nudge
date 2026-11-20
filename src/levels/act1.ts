@@ -134,6 +134,7 @@ export const act1: Level[] = [
       'New job. Each dot now has two numbers, its position across and up, and a kind: yellow circle or pink square. The machine has to say which kind.',
       'Two inputs means two weights. The sum gets squashed to between 0 and 1. Near 1 means yellow, near 0 means pink. The background shows the answer everywhere.',
       "The chalk line is where it can't decide. The weights turn the line and the bias slides it.",
+      'Three dials, so the machine is now one point in a box: across is the first weight, deep is the second, up is the bias. The dotted shells join settings with equal loss, and the glow is where every dot comes out right. A fourth dial would need a direction nobody can draw.',
     ],
     goalText: 'Get every dot on the right side.',
     winText:
@@ -145,6 +146,7 @@ export const act1: Level[] = [
       { at: [0.45, 0.4], kind: 1, count: 10, spread: 0.2 },
       { at: [-0.45, -0.45], kind: 0, count: 10, spread: 0.2 },
     ]),
+    box: { axes: [0, 1, 2], range: 4, names: ['first weight', 'second weight', 'bias'] },
     view: 'plane',
     goal: { kind: 'allCorrect' },
     tools: { drag: true },
@@ -156,6 +158,7 @@ export const act1: Level[] = [
     text: [
       'Different dots, and the dials are locked again. You have Step, Run and the learning rate.',
       "Nothing about the training changed. Same slopes, same stepping downhill. The loss is measured differently, because the answers are kinds instead of heights, and that's all.",
+      'Watch the point in the box. It moves through the shells toward the glow, three dials at once.',
     ],
     goalText: 'Every dot right in 25 steps or fewer.',
     winText:
@@ -167,6 +170,7 @@ export const act1: Level[] = [
       { at: [-0.4, 0.35], kind: 1, count: 10, spread: 0.17 },
       { at: [0.35, -0.3], kind: 0, count: 10, spread: 0.17 },
     ]),
+    box: { axes: [0, 1, 2], range: 4, names: ['first weight', 'second weight', 'bias'] },
     view: 'plane',
     goal: { kind: 'allCorrect' },
     tools: { hints: true, step: true, run: true, rate: true },
@@ -184,11 +188,12 @@ export const act1: Level[] = [
     ],
     goalText: 'Get every dot on the right side.',
     winText:
-      "Correct. One neuron draws one straight line, and no straight line splits these corners. A 1969 book made this exact puzzle famous as the thing a single neuron can't do. The way out is more neurons, in layers.",
+      "Correct. One neuron draws one straight line, and no straight line splits these corners. A 1969 book made this exact puzzle famous as the thing a single neuron can't do. Look at the box: it has no glow anywhere, because no setting of these three dials wins. The way out is more neurons, in layers.",
     spec: sorter,
     loss: 'bce',
     start: [0.8, 0.6, -0.2],
     data: corners,
+    box: { axes: [0, 1, 2], range: 4, names: ['first weight', 'second weight', 'bias'] },
     view: 'plane',
     goal: { kind: 'impossible' },
     tools: { drag: true, hints: true, step: true, run: true, rate: true },

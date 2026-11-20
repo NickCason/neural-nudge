@@ -196,6 +196,23 @@ export function evaluate(
   return { loss: loss * scale, grad };
 }
 
+/** Just the average loss, without the gradient. For filling in a map of the loss quickly. */
+export function lossOnly(spec: NetSpec, params: ArrayLike<number>, data: Sample[], kind: LossKind): number {
+  let loss = 0;
+  for (const sample of data) {
+    const out = predict(spec, params, sample.x);
+    for (let j = 0; j < out.length; j++) {
+      const y = sample.y[j];
+      if (kind === 'mse') loss += (out[j] - y) ** 2;
+      else {
+        const o = Math.min(1 - EPS, Math.max(EPS, out[j]));
+        loss += -(y * Math.log(o) + (1 - y) * Math.log(1 - o));
+      }
+    }
+  }
+  return loss / Math.max(1, data.length);
+}
+
 /** How many samples land on the right side of 0.5. Only meaningful for 0/1 targets. */
 export function countCorrect(spec: NetSpec, params: ArrayLike<number>, data: Sample[]): number {
   let right = 0;

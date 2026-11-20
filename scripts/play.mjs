@@ -173,6 +173,7 @@ check(true, 'a sensible step size solves it within the budget');
 await next('Sorting dots');
 
 console.log('6 Sorting dots');
+check((await page.locator('.box-plot canvas').count()) === 1, 'three dials are drawn as a point in a box');
 await tuneByHand();
 check(await solved(), 'solved by turning the dials');
 await next('Hands off');
@@ -196,6 +197,7 @@ await next('Two opinions');
 
 console.log('9 Two opinions');
 {
+  check((await page.locator('.box-plot canvas').count()) === 0, 'nine dials get no box');
   check((await dials().count()) === 9, 'two hidden neurons and an output make nine dials');
   const readings = () => page.locator('svg.net g.dial text.reading').allTextContents();
   const before = await readings();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluate, paramCount, paramLayout, predict, trace, countCorrect } from './net';
+import { evaluate, lossOnly, paramCount, paramLayout, predict, trace, countCorrect } from './net';
 import type { LossKind, NetSpec, Sample } from './net';
 import { rng } from './rng';
 
@@ -68,6 +68,17 @@ describe('gradients match finite differences', () => {
       analytic.forEach((g, i) => expect(g).toBeCloseTo(numeric[i], 5));
     });
   }
+});
+
+describe('lossOnly', () => {
+  it('agrees with the loss that comes with the gradient', () => {
+    const spec: NetSpec = { inputs: 2, layers: [{ size: 3, act: 'tanh' }, { size: 1, act: 'sigmoid' }] };
+    const next = rng(3);
+    const data: Sample[] = Array.from({ length: 5 }, () => ({ x: [next(), next()], y: [next() > 0.5 ? 1 : 0] }));
+    const p = randomParams(spec, 9);
+    expect(lossOnly(spec, p, data, 'bce')).toBeCloseTo(evaluate(spec, p, data, 'bce').loss, 10);
+    expect(lossOnly(spec, p, data, 'mse')).toBeCloseTo(evaluate(spec, p, data, 'mse').loss, 10);
+  });
 });
 
 describe('countCorrect', () => {
