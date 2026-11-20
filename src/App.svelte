@@ -1,6 +1,7 @@
 <script lang="ts">
   import { game } from './game.svelte';
   import { neuronName } from './ui/names';
+  import Burst from './ui/Burst.svelte';
   import HillPlot from './ui/HillPlot.svelte';
   import Inspector from './ui/Inspector.svelte';
   import Lesson from './ui/Lesson.svelte';
@@ -37,9 +38,11 @@
     <LevelStrip />
   </header>
 
+  {#key game.index}
   <main>
     <section class="lesson-pane">
       <Lesson />
+      <Inspector />
     </section>
 
     <section class="bench" aria-label="The machine">
@@ -47,12 +50,9 @@
         <NetworkView />
       </div>
       <ToolTray />
-      <div class="under" class:with-hill={showHill}>
-        {#if showHill}
-          <HillPlot />
-        {/if}
-        <Inspector />
-      </div>
+      {#if showHill}
+        <div class="hill-wrap"><HillPlot /></div>
+      {/if}
     </section>
 
     <section class="world" aria-label="How it's doing">
@@ -72,7 +72,10 @@
       {/if}
     </section>
   </main>
+  {/key}
 </div>
+
+<Burst />
 
 <style>
   .app {
@@ -98,14 +101,24 @@
     font-weight: 800;
     line-height: 1;
     letter-spacing: -0.02em;
+    text-shadow: 0 0 18px color-mix(in srgb, var(--chalk) 35%, transparent);
   }
 
   main {
     display: grid;
-    grid-template-columns: minmax(16rem, 22rem) minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-columns: minmax(16rem, 22rem) minmax(0, 1.25fr) minmax(0, 1fr);
     gap: clamp(1.25rem, 2.5vw, 2.5rem);
     padding-top: 1.5rem;
     align-items: start;
+    animation: arrive 0.35s ease-out;
+  }
+
+  /* The one page-level motion: a new level settles into place. */
+  @keyframes arrive {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
   }
 
   .bench {
@@ -114,10 +127,17 @@
     min-width: 0;
   }
 
+  /* The machine sits in a lit well: the one place on the page that glows. */
   .net-wrap {
     border: 1.5px solid var(--rule);
-    border-radius: 10px;
+    border-radius: 14px;
     padding: 0.5rem;
+    background:
+      radial-gradient(120% 90% at 50% 45%, rgba(40, 96, 84, 0.42), transparent 70%),
+      var(--board-deep);
+    box-shadow:
+      inset 0 0 60px rgba(0, 0, 0, 0.45),
+      0 18px 50px -24px rgba(0, 0, 0, 0.8);
   }
 
   .world {
@@ -130,6 +150,10 @@
     display: grid;
     gap: 0.9rem;
     max-width: 30rem;
+    border-radius: 10px;
+    box-shadow:
+      0 0 0 1.5px var(--rule),
+      0 18px 50px -24px rgba(0, 0, 0, 0.8);
   }
 
   .note {
@@ -138,11 +162,16 @@
     max-width: 44ch;
   }
 
-  .under.with-hill {
+  .lesson-pane {
     display: grid;
-    grid-template-columns: minmax(0, 17rem) minmax(0, 1fr);
     gap: 1.25rem;
-    align-items: start;
+    align-content: start;
+  }
+
+  .hill-wrap {
+    max-width: 26rem;
+    justify-self: center;
+    width: 100%;
   }
 
   @media (max-width: 1080px) {
@@ -170,11 +199,6 @@
     }
 
     .plots {
-      max-width: 26rem;
-    }
-
-    .under.with-hill {
-      grid-template-columns: minmax(0, 1fr);
       max-width: 26rem;
     }
   }

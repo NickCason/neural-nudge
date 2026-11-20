@@ -8,16 +8,16 @@
 }
 
 :root {
-  /* A chalkboard: one deep green ground and three sticks of chalk. */
-  --board: #23403a;
-  --board-deep: #1a302c;
-  --board-lift: #2d4f48;
-  --chalk: #eef1e6;
-  --dust: #a3b8ad;
-  --rule: #456860;
-  --sun: #f4cf5c; /* positive, "yes", class 1 */
-  --rose: #f28db2; /* negative, "no", class 0 */
-  --sky: #8fd0e6; /* guidance: slopes, trails, things to click */
+  /* A blackboard at night: one deep green ground and three sticks of chalk that glow. */
+  --board: #0e2420;
+  --board-deep: #081714;
+  --board-lift: #1b3d36;
+  --chalk: #f3f6ec;
+  --dust: #9ab3a8;
+  --rule: #2c5249;
+  --sun: #ffd447; /* positive, "yes", class 1 */
+  --rose: #ff7eb3; /* negative, "no", class 0 */
+  --sky: #68dcff; /* guidance: slopes, trails, things to click */
 
   --step--1: 0.84rem;
   --step-0: 1rem;
@@ -47,7 +47,12 @@ body,
 }
 
 body {
-  background: var(--board);
+  /* Light pooling at the top of the board, and a faint grid of dots like squared paper. */
+  background:
+    radial-gradient(1100px 620px at 50% -8%, #1d4a40 0%, transparent 70%),
+    radial-gradient(circle at 1px 1px, rgba(243, 246, 236, 0.055) 1px, transparent 1.6px) 0 0 / 26px 26px,
+    var(--board);
+  background-attachment: fixed;
   overscroll-behavior: none;
 }
 

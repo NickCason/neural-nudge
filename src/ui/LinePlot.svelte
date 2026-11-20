@@ -30,10 +30,14 @@
 
 <svg class="plot" viewBox="0 0 {S} {S}" role="img" aria-label="The examples and the machine's guesses">
   <defs>
-    <clipPath id="line-clip"><rect width={S} height={S} rx="6" /></clipPath>
+    <clipPath id="line-clip"><rect width={S} height={S} rx="7" /></clipPath>
   </defs>
-  <rect class="ground" width={S} height={S} rx="6" />
+  <rect class="ground" width={S} height={S} rx="7" />
   <g clip-path="url(#line-clip)">
+    {#each [-1, -0.5, 0.5, 1] as g (g)}
+      <line class="grid" x1={px(g)} y1="0" x2={px(g)} y2={S} />
+      <line class="grid" x1="0" y1={py(g)} x2={S} y2={py(g)} />
+    {/each}
     <line class="axis" x1="0" y1={py(0)} x2={S} y2={py(0)} />
     <line class="axis" x1={px(0)} y1="0" x2={px(0)} y2={S} />
     {#each points as p (p.i)}
@@ -75,6 +79,11 @@
     fill: var(--board-deep);
   }
 
+  .grid {
+    stroke: color-mix(in srgb, var(--chalk) 5%, transparent);
+    stroke-width: 1;
+  }
+
   .axis {
     stroke: var(--rule);
     stroke-width: 1;
@@ -92,6 +101,7 @@
     stroke-width: 3;
     stroke-linecap: round;
     stroke-linejoin: round;
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--chalk) 75%, transparent));
   }
 
   .miss {
@@ -107,6 +117,7 @@
     fill: var(--sun);
     stroke: var(--board-deep);
     stroke-width: 1.5;
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--sun) 80%, transparent));
   }
 
   .point.probed .dot {

@@ -82,6 +82,7 @@
 
   .figure.met {
     color: var(--sun);
+    text-shadow: 0 0 22px color-mix(in srgb, var(--sun) 60%, transparent);
   }
 
   .label,
@@ -108,6 +109,8 @@
     height: 100%;
     border-radius: 4px;
     background: var(--sky);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--sky) 70%, transparent);
+    transition: width 0.12s linear;
   }
 
   .target {
@@ -116,6 +119,10 @@
     bottom: -5px;
     width: 2px;
     background: var(--sun);
+  }
+
+  .num .of {
+    margin-left: 0.4em;
   }
 
   .spent {

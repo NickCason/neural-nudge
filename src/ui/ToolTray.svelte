@@ -115,6 +115,7 @@
     border-color: var(--chalk);
     color: var(--board-deep);
     min-width: 5.2rem;
+    box-shadow: 0 0 20px -4px color-mix(in srgb, var(--chalk) 75%, transparent);
   }
 
   .tool.primary:hover:not(:disabled) {

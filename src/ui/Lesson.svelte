@@ -72,6 +72,16 @@
   .goal.solved {
     border-style: solid;
     border-color: var(--sun);
+    background: color-mix(in srgb, var(--sun) 7%, transparent);
+    box-shadow: 0 0 34px -10px color-mix(in srgb, var(--sun) 65%, transparent);
+    animation: land 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+  }
+
+  @keyframes land {
+    from {
+      transform: scale(0.94);
+      opacity: 0;
+    }
   }
 
   .goal h2 {
@@ -104,6 +114,7 @@
     color: var(--board-deep);
     font-weight: 700;
     cursor: pointer;
+    box-shadow: 0 0 22px -4px color-mix(in srgb, var(--sun) 80%, transparent);
   }
 
   .next:hover {

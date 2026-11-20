@@ -20,7 +20,7 @@ npm run dev        # http://127.0.0.1:8097
 ## Check it
 
 ```sh
-npm test           # engine gradients against finite differences; every level proven solvable
+npm test           # gradients against finite differences; every level proven solvable; terrain visibility
 npm run build      # type-check and build to dist/
 npm run preview    # serve dist/ on :8097
 npm run e2e        # play all nine levels through the real UI (needs preview running)
@@ -37,6 +37,9 @@ npm run shots      # screenshot every level into shots/
 - `src/play.ts` holds the rules (stepping, goals, growing the network) with no UI in it.
 - `src/game.svelte.ts` is the single piece of live state the interface reads.
 - `src/ui/` is the interface: the network view, the three plots, lesson, tools, inspector.
+  The network is two layers: `netPaint.ts` paints the glowing wires, the signal flowing along them,
+  and a live picture inside each neuron of what it computes; SVG on top carries the dials and labels.
+  `terrain.ts` is the geometry of the 3D loss landscape, tested so the goal can never be hidden.
 
 Append `?unlock` to the address to open every level without solving the earlier ones.
 

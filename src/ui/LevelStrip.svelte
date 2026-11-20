@@ -24,6 +24,7 @@
     display: flex;
     gap: 0.35rem;
     flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .pip {
@@ -41,6 +42,7 @@
   .pip.done {
     border-color: var(--sun);
     color: var(--sun);
+    box-shadow: 0 0 10px -2px color-mix(in srgb, var(--sun) 70%, transparent);
   }
 
   .pip.current {
@@ -48,6 +50,7 @@
     border-color: var(--chalk);
     color: var(--board-deep);
     font-weight: 700;
+    box-shadow: 0 0 14px -1px color-mix(in srgb, var(--chalk) 70%, transparent);
   }
 
   .pip:disabled {

@@ -10,7 +10,7 @@ async function render(file, size, inset) {
   // Maskable icons get cropped to a circle or squircle, so the drawing sits inside a safe margin.
   const scale = 1 - inset * 2;
   await page.setContent(
-    `<body style="margin:0;background:#23403a;display:grid;place-items:center;height:100vh">
+    `<body style="margin:0;background:#0e2420;display:grid;place-items:center;height:100vh">
        <div style="width:${size * scale}px;height:${size * scale}px">${svg}</div></body>`,
   );
   await page.screenshot({ path: `public/${file}` });

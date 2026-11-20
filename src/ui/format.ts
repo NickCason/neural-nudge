@@ -46,14 +46,66 @@ export function rgb(hex: string): [number, number, number] {
 }
 
 export const COLORS = {
-  board: '#23403a',
-  boardDeep: '#1a302c',
-  chalk: '#eef1e6',
-  dust: '#a3b8ad',
-  sun: '#f4cf5c',
-  rose: '#f28db2',
-  sky: '#8fd0e6',
+  board: '#0e2420',
+  boardDeep: '#081714',
+  chalk: '#f3f6ec',
+  dust: '#9ab3a8',
+  sun: '#ffd447',
+  rose: '#ff7eb3',
+  sky: '#68dcff',
 };
+
+export type RGB = [number, number, number];
+
+export const INK = {
+  deep: rgb(COLORS.boardDeep) as RGB,
+  chalk: rgb(COLORS.chalk) as RGB,
+  sun: rgb(COLORS.sun) as RGB,
+  rose: rgb(COLORS.rose) as RGB,
+  sky: rgb(COLORS.sky) as RGB,
+  dust: rgb(COLORS.dust) as RGB,
+};
+
+/** Yellow for positive, pink for negative, grey for nothing. */
+export function signInk(v: number): RGB {
+  if (Math.abs(v) < 0.005) return INK.dust;
+  return v > 0 ? INK.sun : INK.rose;
+}
+
+/**
+ * Colour for an answer between "no" (-1) and "yes" (+1): pink through dark to yellow,
+ * with a pale rim right where it can't decide.
+ */
+export function answerInk(s: number, strength = 0.62): RGB {
+  const toward = s >= 0 ? INK.sun : INK.rose;
+  const k = Math.pow(Math.min(1, Math.abs(s)), 0.6) * strength;
+  const rim = Math.exp(-(s * s) / 0.012) * 0.16;
+  return [
+    INK.deep[0] + (toward[0] - INK.deep[0]) * k + (INK.chalk[0] - INK.deep[0]) * rim,
+    INK.deep[1] + (toward[1] - INK.deep[1]) * k + (INK.chalk[1] - INK.deep[1]) * rim,
+    INK.deep[2] + (toward[2] - INK.deep[2]) * k + (INK.chalk[2] - INK.deep[2]) * rim,
+  ];
+}
+
+/** Stretch a square grid of samples to `factor` times the resolution, smoothly. */
+export function upsample(values: Float32Array, size: number, factor: number): { values: Float32Array; size: number } {
+  const big = (size - 1) * factor + 1;
+  const out = new Float32Array(big * big);
+  for (let r = 0; r < big; r++) {
+    const fr = r / factor;
+    const r0 = Math.min(size - 2, Math.floor(fr));
+    const tr = fr - r0;
+    for (let c = 0; c < big; c++) {
+      const fc = c / factor;
+      const c0 = Math.min(size - 2, Math.floor(fc));
+      const tc = fc - c0;
+      const top = values[r0 * size + c0] * (1 - tc) + values[r0 * size + c0 + 1] * tc;
+      const bottom = values[(r0 + 1) * size + c0] * (1 - tc) + values[(r0 + 1) * size + c0 + 1] * tc;
+      out[r * big + c] = top * (1 - tr) + bottom * tr;
+    }
+  }
+  return { values: out, size: big };
+}
 
 /**
  * Line segments where a grid of values crosses `level` (marching squares).

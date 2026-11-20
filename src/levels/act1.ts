@@ -59,13 +59,13 @@ export const levels: Level[] = [
     id: 'the-hill',
     title: 'The hill',
     text: [
-      'Every pair of dial settings gives some amount of error. Lay all the settings out on a map, weight across and bias up, and the error becomes a landscape. Light is high ground, dark is low.',
-      "The dot on the map is your machine right now. Drag it around, or keep using the dials. They're the same thing.",
+      'Every pair of dial settings gives some amount of error. Lay all the settings out on the ground, weight across and bias away from you, and the error becomes a landscape. Pale is high ground, dark is low.',
+      "The ball is your machine right now. Drag it around, or keep using the dials. They're the same thing.",
       'People who build these call the error the loss. Learning means finding the bottom of the valley.',
     ],
     goalText: 'Reach the bottom of the valley: loss below 0.01.',
     winText:
-      "You found it by looking at the map. With two dials you can draw one. With a million dials nobody can, so you'll need a way to find the bottom without seeing it.",
+      "You found it by looking at the landscape. With two dials you can draw one. With a million dials nobody can, so you'll need a way to find the bottom without seeing it.",
     spec: oneInput,
     loss: 'mse',
     start: [1.2, -1.2],

@@ -67,6 +67,9 @@
 <style>
   .inspector {
     min-height: 6.5rem;
+    max-width: 38ch;
+    padding-top: 0.9rem;
+    border-top: 1.5px solid var(--rule);
     font-size: var(--step--1);
   }
 

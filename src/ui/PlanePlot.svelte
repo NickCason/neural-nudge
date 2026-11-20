@@ -1,11 +1,11 @@
 <script lang="ts">
   import { predict, trace } from '../engine/net';
   import { game } from '../game.svelte';
-  import { COLORS, contour, rgb } from './format';
+  import { answerInk, contour } from './format';
 
   const S = 300;
   const R = 1.1;
-  const N = 56;
+  const N = 72;
   const px = (x: number) => ((x + R) / (2 * R)) * S;
   const py = (y: number) => S - ((y + R) / (2 * R)) * S;
 
@@ -34,6 +34,8 @@
   });
 
   const edge = $derived(contour(field, N, 0.5));
+  /** Lines of equal confidence, like height lines on a map: close together where the answer flips fast. */
+  const sure = $derived([0.08, 0.25, 0.75, 0.92].map((level) => ({ level, lines: contour(field, N, level) })));
   const cell = S / (N - 1);
 
   const points = $derived(
@@ -50,16 +52,11 @@
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const image = ctx.createImageData(N, N);
-    const base = rgb(COLORS.boardDeep);
-    const yes = rgb(COLORS.sun);
-    const no = rgb(COLORS.rose);
     for (let i = 0; i < values.length; i++) {
-      const s = (values[i] - 0.5) * 2;
-      const toward = s >= 0 ? yes : no;
-      const k = Math.pow(Math.abs(s), 0.7) * 0.5;
-      image.data[i * 4] = base[0] + (toward[0] - base[0]) * k;
-      image.data[i * 4 + 1] = base[1] + (toward[1] - base[1]) * k;
-      image.data[i * 4 + 2] = base[2] + (toward[2] - base[2]) * k;
+      const ink = answerInk((values[i] - 0.5) * 2, 0.46);
+      image.data[i * 4] = ink[0];
+      image.data[i * 4 + 1] = ink[1];
+      image.data[i * 4 + 2] = ink[2];
       image.data[i * 4 + 3] = 255;
     }
     ctx.putImageData(image, 0, 0);
@@ -69,9 +66,22 @@
 <div class="plane">
   <canvas bind:this={canvas} width={N} height={N} aria-hidden="true"></canvas>
   <svg viewBox="0 0 {S} {S}" role="img" aria-label="The dots, coloured by kind, over the network's answer">
-    {#each edge as seg, i (i)}
-      <line class="edge" x1={seg[0] * cell} y1={seg[1] * cell} x2={seg[2] * cell} y2={seg[3] * cell} />
+    {#each [-0.5, 0, 0.5] as g (g)}
+      <line class="grid" x1={px(g)} y1="0" x2={px(g)} y2={S} />
+      <line class="grid" x1="0" y1={py(g)} x2={S} y2={py(g)} />
     {/each}
+    {#each sure as band (band.level)}
+      <g class="sure" class:yes-side={band.level > 0.5}>
+        {#each band.lines as seg, i (i)}
+          <line x1={seg[0] * cell} y1={seg[1] * cell} x2={seg[2] * cell} y2={seg[3] * cell} />
+        {/each}
+      </g>
+    {/each}
+    <g class="edges">
+      {#each edge as seg, i (i)}
+        <line x1={seg[0] * cell} y1={seg[1] * cell} x2={seg[2] * cell} y2={seg[3] * cell} />
+      {/each}
+    </g>
     {#each points as p (p.i)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <g
@@ -103,7 +113,7 @@
   .plane {
     position: relative;
     aspect-ratio: 1;
-    border-radius: 6px;
+    border-radius: 10px;
     overflow: hidden;
     background: var(--board-deep);
   }
@@ -121,10 +131,26 @@
     touch-action: manipulation;
   }
 
-  .edge {
+  .grid {
+    stroke: color-mix(in srgb, var(--chalk) 7%, transparent);
+    stroke-width: 1;
+  }
+
+  .sure {
+    stroke: color-mix(in srgb, var(--rose) 55%, transparent);
+    stroke-width: 1;
+    stroke-linecap: round;
+  }
+
+  .sure.yes-side {
+    stroke: color-mix(in srgb, var(--sun) 55%, transparent);
+  }
+
+  .edges {
     stroke: var(--chalk);
     stroke-width: 2.5;
     stroke-linecap: round;
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--chalk) 80%, transparent));
   }
 
   .hit {
@@ -135,19 +161,36 @@
     fill: var(--sun);
     stroke: var(--board-deep);
     stroke-width: 1.5;
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--sun) 70%, transparent));
   }
 
   .no {
     fill: var(--rose);
     stroke: var(--board-deep);
     stroke-width: 1.5;
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--rose) 70%, transparent));
   }
 
+  /* A dot on the wrong side keeps tapping for attention until it's fixed. */
   .wrong {
     fill: none;
     stroke: var(--chalk);
     stroke-width: 1.5;
-    stroke-dasharray: 3 3;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: tap 1.4s ease-in-out infinite;
+  }
+
+  @keyframes tap {
+    0%,
+    100% {
+      transform: scale(0.85);
+      opacity: 0.95;
+    }
+    50% {
+      transform: scale(1.25);
+      opacity: 0.35;
+    }
   }
 
   .point.probed .yes,

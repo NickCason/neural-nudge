@@ -84,16 +84,36 @@ await next('The hill');
 
 console.log('3 The hill');
 {
-  const box = await page.locator('.hill svg').boundingBox();
-  // The examples sit near weight -0.9, bias 0.5. Drag the marker there in two moves.
-  const at = (w, b) => [box.x + ((w + 2) / 4) * box.width, box.y + (1 - (b + 2) / 4) * box.height];
-  await page.mouse.move(...at(1.2, -1.2));
+  // Drag the ball the way a person would: move, look at what the dials say, correct, repeat.
+  const box = await page.locator('canvas.hill').boundingBox();
+  const read = async () =>
+    (await page.locator('svg.net g.dial text.reading').allTextContents()).map((t) => Number(t.trim().replace('\u2212', '-')));
+  let x = box.x + box.width / 2;
+  let y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
   await page.mouse.down();
-  await page.mouse.move(...at(0, 0), { steps: 5 });
-  check(!(await solved()), 'not solved halfway there');
-  await page.mouse.move(...at(-0.9, 0.5), { steps: 5 });
+  const here = await read();
+  await page.mouse.move(x + 24, y);
+  const right = await read();
+  await page.mouse.move(x, y + 24);
+  const below = await read();
+  check(!(await solved()), 'not solved by dropping the ball in the middle');
+  // how the two dials respond to moving the pointer across and down
+  const a = (right[0] - here[0]) / 24, c = (right[1] - here[1]) / 24;
+  const b = (below[0] - here[0]) / 24, d = (below[1] - here[1]) / 24;
+  const det = a * d - b * c;
+  let now = below;
+  y += 24;
+  for (let i = 0; i < 12 && !(await solved()); i++) {
+    const ew = -0.9 - now[0], eb = 0.5 - now[1];
+    x += ((d * ew - b * eb) / det) * 0.8;
+    y += ((-c * ew + a * eb) / det) * 0.8;
+    await page.mouse.move(x, y, { steps: 3 });
+    now = await read();
+    if (process.env.DEBUG) console.log(i, x.toFixed(0), y.toFixed(0), now, await loss());
+  }
   await page.mouse.up();
-  check(await solved(), 'solved by dragging the marker to the valley floor');
+  check(await solved(), 'solved by dragging the ball to the valley floor');
 }
 await next('Which way is down');
 
