@@ -20,8 +20,8 @@
 
 <div class="inspector" aria-live="polite">
   {#if info}
-    <h2><Subs text={paramTitle(game.spec, info)} /></h2>
-    <p class="explain"><Subs text={paramExplain(game.spec, info)} /></p>
+    <h2><Subs text={paramTitle(game.spec, info, game.level.names)} /></h2>
+    <p class="explain"><Subs text={paramExplain(game.spec, info, game.level.names)} /></p>
     <dl>
       <div>
         <dt>Value</dt>

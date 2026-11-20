@@ -491,7 +491,7 @@
         transform="translate({d.x},{d.y})"
         role="slider"
         tabindex="0"
-        aria-label={plain(paramTitle(game.spec, d.info))}
+        aria-label={plain(paramTitle(game.spec, d.info, game.level.names))}
         aria-valuenow={Math.round(v * 100) / 100}
         aria-valuemin={-DIAL_LIMIT}
         aria-valuemax={DIAL_LIMIT}
