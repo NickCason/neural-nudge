@@ -243,6 +243,16 @@ console.log('10 Move the lines');
 await next('Hands off again');
 
 console.log('11 Hands off again');
+{
+  await button('Neurons as points').click();
+  check((await page.locator('.box-plot canvas').count()) === 1 && (await page.locator('.tally').count()) === 0, 'the table can be swapped for the hidden neurons drawn as points in a box');
+  await button('Table').click();
+  check((await page.locator('.tally').count()) === 1, 'and swapped back');
+  await button('Lifted').click();
+  check((await page.locator('.surface canvas').count()) === 1 && (await page.locator('.plane').count()) === 0, 'the dot plot can be lifted into a surface');
+  await button('Flat').click();
+  check((await page.locator('.plane').count()) === 1, 'and laid flat again');
+}
 await button('Run').click();
 await page.locator('.goal.solved').waitFor({ timeout: 30000 });
 check(true, 'training finds the two lines on its own');

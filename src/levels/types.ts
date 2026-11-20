@@ -92,5 +92,9 @@ export interface Level {
     lines?: boolean;
     /** List the groups the hidden lines cut the dots into, and what the output neuron makes of each. */
     tally?: boolean;
+    /** Draw every hidden neuron as a point in one box: its two weights and its bias. */
+    neurons?: boolean;
+    /** Let the dot plot be lifted into a surface whose height is the network's answer. */
+    surface?: boolean;
   };
 }

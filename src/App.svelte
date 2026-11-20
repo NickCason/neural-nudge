@@ -13,6 +13,8 @@
   import PlanePlot from './ui/PlanePlot.svelte';
   import Readout from './ui/Readout.svelte';
   import Tally from './ui/Tally.svelte';
+  import SurfacePlot from './ui/SurfacePlot.svelte';
+  import Switch from './ui/Switch.svelte';
   import ToolTray from './ui/ToolTray.svelte';
 
   // The level lives in the address, so a level can be linked to and the back button works.
@@ -35,6 +37,13 @@
   const showTally = $derived(
     !!game.level.show?.tally && game.spec.layers.length === 2 && game.spec.layers[0].size === 2,
   );
+  /** Hidden neurons all have the same three dials, so they can share one box. */
+  const showNeurons = $derived(!!game.level.show?.neurons && game.spec.layers.length === 2);
+  const showSurface = $derived(!!game.level.show?.surface && game.spec.layers.length === 2);
+  let lift = $state<'flat' | 'lifted'>(game.lifted ? 'lifted' : 'flat');
+  $effect(() => {
+    game.lifted = lift === 'lifted';
+  });
 </script>
 
 <svelte:window onhashchange={fromHash} />
@@ -63,15 +72,39 @@
       {#if game.level.box && game.hiddenSize === 0}
         <div class="box-wrap"><BoxPlot /></div>
       {/if}
-      {#if showTally}
+      {#if showTally && showNeurons}
+        <Switch
+          bind:value={game.under}
+          label="What to show under the network"
+          options={[
+            { id: 'table', text: 'Table' },
+            { id: 'box', text: 'Neurons as points' },
+          ]}
+        />
+      {/if}
+      {#if showTally && !(showNeurons && game.under === 'box')}
         <Tally />
+      {:else if showNeurons}
+        <div class="box-wrap"><BoxPlot /></div>
       {/if}
     </section>
 
     <section class="world" aria-label="How it's doing">
       <Readout />
-      <div class="plots">
-        {#if game.level.view === 'line'}
+      {#if showSurface}
+        <Switch
+          bind:value={lift}
+          label="How to draw the dot plot"
+          options={[
+            { id: 'flat', text: 'Flat' },
+            { id: 'lifted', text: 'Lifted' },
+          ]}
+        />
+      {/if}
+      <div class="plots" class:bare={showSurface && game.lifted}>
+        {#if showSurface && game.lifted}
+          <SurfacePlot />
+        {:else if game.level.view === 'line'}
           <LinePlot />
         {:else if game.level.view === 'drive'}
           <DrivePlot />
@@ -169,6 +202,10 @@
     box-shadow:
       0 0 0 1.5px var(--rule),
       0 18px 50px -24px rgba(0, 0, 0, 0.8);
+  }
+
+  .plots.bare {
+    box-shadow: none;
   }
 
   .note {

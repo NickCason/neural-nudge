@@ -251,7 +251,7 @@ export const act1: Level[] = [
     tools: { drag: true, lines: true },
     fresh: ['lines'],
     errorName: 'loss',
-    show: { lines: true, tally: true },
+    show: { lines: true, tally: true, neurons: true },
   },
   {
     id: 'hands-off-again',
@@ -277,7 +277,7 @@ export const act1: Level[] = [
     runSpeed: 12,
     seed: 500,
     errorName: 'loss',
-    show: { lines: true, tally: true },
+    show: { lines: true, tally: true, neurons: true, surface: true },
   },
   {
     id: 'fence-it-in',
@@ -303,6 +303,6 @@ export const act1: Level[] = [
     seed: 4000,
     errorName: 'loss',
     grow: { max: 5, act: 'tanh', start: 2 },
-    show: { lines: true },
+    show: { lines: true, neurons: true, surface: true },
   },
 ];

@@ -59,6 +59,10 @@ class Game {
   spotlight = $state<number[] | null>(null);
   /** Hidden neuron being pointed at, so its line and its circle can light up together. */
   hover = $state<number | null>(null);
+  /** Which picture sits under the network when a level offers both: the table of groups or the box of neurons. */
+  under = $state<'table' | 'box'>('table');
+  /** Whether the dot plot is lifted into a surface. */
+  lifted = $state(false);
   /** The cart is being driven along the trips worked out for it. */
   driving = $state(false);
   /** How far through the trip the cart is, in frames. */
