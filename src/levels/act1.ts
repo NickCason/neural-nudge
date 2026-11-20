@@ -229,11 +229,11 @@ export const act1: Level[] = [
     text: [
       'The output neuron keeps the rule you just gave it: yes where 1 says yes and 2 says no. Its dials are locked this time, and the dots are different.',
       "So change what the hidden neurons say. Drag a line by its round handle to slide it, or by its small handle to swing it. The ticks mark its yes side. Watch the dials while you drag: a line's direction is its two weights, and its position is its bias.",
-      "Watch the groups under the machine. A group with both kinds in it can't be answered right, whatever the output neuron does. Move the lines until no group is mixed.",
+      'Watch the table under the machine. Rows that show the same two answers but hold different kinds of dot are trouble: the output neuron is being told nearly the same thing about both. Move the lines until every yellow row looks different from every pink one.',
     ],
     goalText: 'Get every dot on the right side.',
     winText:
-      "The rule on top never changed. You solved a new problem only by changing where the hidden neurons draw their lines, so the dots fall into groups the rule gets right. Sorting the dots into clean groups: that's the whole job of a hidden layer.",
+      "The rule on top never changed. You solved a new problem only by changing where the hidden neurons draw their lines, so the dots fall into groups the rule gets right. Making the two kinds look different to the neuron that decides: that's the whole job of a hidden layer.",
     spec: twoHidden,
     loss: 'bce',
     start: [4, 4, 2, 4, 4, -2, 3, -3, -2],
@@ -266,6 +266,7 @@ export const act1: Level[] = [
       "Nobody told the hidden neurons to bracket the yellow dots. Stepping downhill on the loss put the lines there, because clean groups are what let the output neuron get every dot right.",
     spec: twoHidden,
     loss: 'bce',
+    explain: 'two-hidden',
     start: freshParams(twoHidden, 2),
     data: corners,
     view: 'plane',

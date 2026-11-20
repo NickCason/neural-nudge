@@ -1,6 +1,7 @@
 import { countCorrect, evaluate, paramLayout } from './engine/net';
 import type { ParamInfo } from './engine/net';
 import { levels } from './levels';
+import { explain } from './levels/explain';
 import type { Level, Tools } from './levels/types';
 import { descend, freshParams, goalMet, seedFor, specFor } from './play';
 import { DT, trips } from './sim/cart';
@@ -100,6 +101,8 @@ class Game {
     const first = this.trips[0];
     return first ? first.frames[Math.min(this.clock, first.frames.length - 1)] : null;
   });
+  /** What to say once solved: about the solution these dials actually are, where that varies. */
+  winText = $derived(explain(this.level, this.spec, this.params) ?? this.level.winText);
   outOfSteps = $derived(
     !this.solved && this.level.stepBudget !== undefined && this.steps >= this.level.stepBudget,
   );

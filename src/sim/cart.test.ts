@@ -47,6 +47,10 @@ describe('two eyes, two wheels', () => {
     expect(met(level, [0.2, 0.8, 0.25, 0.8, 0.2, 0.25])).toBe(true);
     expect(met(level, [0.1, 0.9, 0.25, 0.7, 0, 0.25])).toBe(true);
   });
+  it('can also be reached by mixing a little crossing with braking, but not by braking alone', () => {
+    expect(met(level, [-0.2, 0.1, 0.25, 0.1, -0.2, 0.25])).toBe(true);
+    for (const w of [-0.1, -0.3, -0.6, -1]) expect(met(level, [w, 0, 0.25, 0, w, 0.25]), `${w}`).toBe(false);
+  });
   it('does not reach it half crossed', () => {
     expect(met(level, [0.5, 0.5, 0.25, 0.5, 0.5, 0.25])).toBe(false);
   });

@@ -42,6 +42,8 @@ export interface Level {
   text: string[];
   goalText: string;
   winText: string;
+  /** Levels with more than one kind of solution describe the one the player found; see explain.ts. */
+  explain?: 'two-hidden' | 'cart-steer' | 'cart-dark';
 
   spec: NetSpec;
   loss: LossKind;

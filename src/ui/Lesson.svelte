@@ -17,7 +17,7 @@
   <section class="goal" class:solved={game.solved} aria-live="polite">
     {#if game.solved}
       <h2 class="hand">Solved</h2>
-      <p>{game.level.winText}</p>
+      <p>{game.winText}</p>
       {#if game.isLast}
         <p class="after">That's every level so far. Next up: teaching the cart by driving it yourself.</p>
       {:else}

@@ -7,15 +7,19 @@
   // The output neuron never sees more than this, so its whole job fits in a small table.
 
   interface Group {
-    key: number;
-    says: [boolean, boolean];
-    yellow: number;
-    pink: number;
+    key: string;
+    /** Yellow dots or pink ones: a row only ever holds one kind. */
+    yellow: boolean;
+    count: number;
     members: number[];
-    /** What each wire and the bias add to the output neuron's total, on average over the group. */
+    /** What each hidden neuron says about these dots on average, from -1 for no to +1 for yes. */
+    says: [number, number];
+    /** What each wire and the bias add to the output neuron's total, on average. */
     parts: [number, number, number];
     total: number;
     wrong: number;
+    /** Another row, of the other kind, is getting the same yes and no from both neurons. */
+    twin: boolean;
   }
 
   const params = $derived([...game.params]);
@@ -23,31 +27,37 @@
   const out = $derived(params.slice(game.spec.layers[0].size * (game.spec.inputs + 1)));
 
   const groups = $derived.by((): Group[] => {
-    const found = new Map<number, Group & { h: [number, number] }>();
+    const found = new Map<string, { pattern: number; yellow: boolean; members: number[]; h: [number, number]; wrong: number }>();
     game.level.data.forEach((sample, i) => {
       const t = trace(game.spec, params, sample.x);
       const h = t.a[1];
-      const guess = t.a[2][0];
-      const key = (h[0] > 0 ? 1 : 0) + (h[1] > 0 ? 2 : 0);
+      const pattern = (h[0] > 0 ? 1 : 0) + (h[1] > 0 ? 2 : 0);
+      const yellow = sample.y[0] > 0.5;
+      const key = `${pattern}${yellow ? 'y' : 'p'}`;
       let g = found.get(key);
-      if (!g) {
-        g = { key, says: [h[0] > 0, h[1] > 0], yellow: 0, pink: 0, members: [], parts: [0, 0, 0], total: 0, wrong: 0, h: [0, 0] };
-        found.set(key, g);
-      }
-      if (sample.y[0] > 0.5) g.yellow++;
-      else g.pink++;
+      if (!g) found.set(key, (g = { pattern, yellow, members: [], h: [0, 0], wrong: 0 }));
       g.members.push(i);
       g.h[0] += h[0];
       g.h[1] += h[1];
-      if (guess > 0.5 !== sample.y[0] > 0.5) g.wrong++;
+      if (t.a[2][0] > 0.5 !== yellow) g.wrong++;
     });
-    return [...found.values()]
-      .sort((a, b) => a.key - b.key)
-      .map((g) => {
-        const n = g.members.length;
-        const parts: [number, number, number] = [(out[0] * g.h[0]) / n, (out[1] * g.h[1]) / n, out[2]];
-        return { ...g, parts, total: parts[0] + parts[1] + parts[2] };
-      });
+    const rows = [...found.entries()].sort((a, b) => a[1].pattern - b[1].pattern || Number(b[1].yellow) - Number(a[1].yellow));
+    return rows.map(([key, g]) => {
+      const n = g.members.length;
+      const says: [number, number] = [g.h[0] / n, g.h[1] / n];
+      const parts: [number, number, number] = [out[0] * says[0], out[1] * says[1], out[2]];
+      return {
+        key,
+        yellow: g.yellow,
+        count: n,
+        members: g.members,
+        says,
+        parts,
+        total: parts[0] + parts[1] + parts[2],
+        wrong: g.wrong,
+        twin: rows.some(([, other]) => other.pattern === g.pattern && other.yellow !== g.yellow),
+      };
+    });
   });
 
   const signed = (v: number) => (v >= 0 ? '+' : '') + num(v);
@@ -61,9 +71,8 @@
         <th scope="col">Dots</th>
         <th scope="col">1 says</th>
         <th scope="col">2 says</th>
-        <th scope="col" class="sum">From 1, from 2, bias</th>
-        <th scope="col">Total</th>
-        <th scope="col">So it says</th>
+        <th scope="col" class="sum">Adds up to</th>
+        <th scope="col">So</th>
       </tr>
     </thead>
     <tbody>
@@ -74,30 +83,29 @@
           onpointerleave={() => (game.spotlight = null)}
         >
           <td class="dots">
-            <svg viewBox="0 0 {Math.max(1, g.yellow + g.pink) * 9} 12" style:width="{(g.yellow + g.pink) * 9}px" aria-hidden="true">
-              {#each { length: g.yellow } as _, i (i)}
-                <circle class="yes-dot" cx={i * 9 + 4.5} cy="6" r="3.6" />
-              {/each}
-              {#each { length: g.pink } as _, i (i)}
-                <rect class="no-dot" x={(g.yellow + i) * 9 + 1.2} y="2.7" width="6.6" height="6.6" rx="1" />
-              {/each}
+            <svg viewBox="0 0 12 12" aria-hidden="true">
+              {#if g.yellow}
+                <circle class="yes-dot" cx="6" cy="6" r="4.4" />
+              {:else}
+                <rect class="no-dot" x="2" y="2" width="8" height="8" rx="1.2" />
+              {/if}
             </svg>
-            <span class="sr">{g.yellow} yellow, {g.pink} pink</span>
+            <span class="num">{g.count}</span>
+            <span class="sr">{g.yellow ? 'yellow' : 'pink'}</span>
           </td>
-          <td><span class="chip" class:yes={g.says[0]}>{g.says[0] ? 'yes' : 'no'}</span></td>
-          <td><span class="chip" class:yes={g.says[1]}>{g.says[1] ? 'yes' : 'no'}</span></td>
+          <!-- each answer is a strength, not only a side: +0.3 and +0.9 are both yes, and not the same -->
+          <td><span class="chip num" class:yes={g.says[0] > 0}>{signed(g.says[0])}</span></td>
+          <td><span class="chip num" class:yes={g.says[1] > 0}>{signed(g.says[1])}</span></td>
           <td class="num sum">
             <span class:pos={g.parts[0] > 0} class:neg={g.parts[0] < 0}>{signed(g.parts[0])}</span>
             <span class:pos={g.parts[1] > 0} class:neg={g.parts[1] < 0}>{signed(g.parts[1])}</span>
             <span class:pos={g.parts[2] > 0} class:neg={g.parts[2] < 0}>{signed(g.parts[2])}</span>
+            <span class="total">= {signed(g.total)}</span>
           </td>
-          <td class="num total">{signed(g.total)}</td>
           <td class="verdict">
             <span class="chip" class:yes={g.total > 0}>{g.total > 0 ? 'yes' : 'no'}</span>
             {#if g.wrong === 0}
-              <span class="right">right</span>
-            {:else if g.yellow > 0 && g.pink > 0}
-              <span class="trouble">mixed group</span>
+              <span class="right" title="right">✓</span><span class="sr">right</span>
             {:else}
               <span class="trouble">wrong</span>
             {/if}
@@ -106,7 +114,13 @@
       {/each}
     </tbody>
   </table>
-  <p class="note">Above zero means yes. Point at a row to see its dots.</p>
+  <p class="note">
+    Each answer runs from −1 for no to +1 for yes. The three numbers are what neuron 1, neuron 2 and the bias add to
+    the total; above zero means yes.
+    {#if groups.some((g) => g.twin)}
+      Some yellow and pink rows are getting the same yes and no, so only the strengths tell them apart.
+    {/if}
+  </p>
 </section>
 
 <style>
@@ -124,11 +138,11 @@
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: var(--step--1);
+    font-size: clamp(0.72rem, 0.95vw, var(--step--1));
   }
 
   th {
-    padding: 0.25rem 0.45rem 0.35rem 0;
+    padding: 0.25rem 0.3rem 0.35rem 0;
     color: var(--dust);
     font-weight: 400;
     text-align: left;
@@ -137,7 +151,7 @@
   }
 
   td {
-    padding: 0.5rem 0.45rem 0.5rem 0;
+    padding: 0.5rem 0.3rem 0.5rem 0;
     border-bottom: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
     white-space: nowrap;
     vertical-align: middle;
@@ -149,8 +163,11 @@
   }
 
   .dots svg {
-    display: block;
+    display: inline-block;
+    width: 12px;
     height: 12px;
+    vertical-align: -1px;
+    margin-right: 0.2rem;
   }
 
   .yes-dot {
@@ -163,8 +180,8 @@
 
   .chip {
     display: inline-block;
-    min-width: 2.3rem;
-    padding: 0.05rem 0.45rem;
+    min-width: 2.2rem;
+    padding: 0.05rem 0.4rem;
     border-radius: 999px;
     text-align: center;
     font-weight: 600;
@@ -178,7 +195,7 @@
 
   .sum span {
     display: inline-block;
-    min-width: 2.85rem;
+    min-width: 2.45rem;
     color: var(--dust);
   }
 
@@ -190,7 +207,10 @@
     color: var(--rose);
   }
 
-  .total {
+  .sum .total {
+    min-width: 0;
+    margin-left: 0.15rem;
+    color: var(--chalk);
     font-weight: 700;
   }
 
@@ -200,8 +220,8 @@
   }
 
   .verdict .right {
-    margin-left: 0.4rem;
-    color: var(--dust);
+    margin-left: 0.25rem;
+    color: var(--sun);
   }
 
   .verdict .trouble {
@@ -215,6 +235,7 @@
   .note {
     color: var(--dust);
     font-size: var(--step--1);
+    max-width: 60ch;
   }
 
   .sr {

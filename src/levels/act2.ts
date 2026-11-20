@@ -23,6 +23,7 @@ export const act2: Level[] = [
     goalText: 'Drive to the lamp.',
     winText:
       'Crossed wires: the left eye drives the right wheel, so the cart turns toward whatever it sees. Nothing in there knows what a lamp is. Four numbers are enough to look like wanting.',
+    explain: 'cart-steer',
     spec: cart,
     loss: 'mse',
     start: [1, 0, 0.25, 0, 1, 0.25],
@@ -47,6 +48,7 @@ export const act2: Level[] = [
     goalText: 'Reach the lamp from all three starts.',
     winText:
       'With unequal biases the cart circles until an eye catches the light, then the weights take over. The biases are what it does by default. The weights are how it reacts.',
+    explain: 'cart-dark',
     spec: cart,
     loss: 'mse',
     start: [0, 1, 0.25, 1, 0, 0.25],
@@ -76,7 +78,7 @@ export const act2: Level[] = [
     ],
     goalText: 'Come to rest inside the ring.',
     winText:
-      'Each eye now brakes the wheel on its own side. Far away, the biases push the cart forward. Up close, brightness cancels them out, and it settles where the two balance. A thermostat holds a room at a temperature the same way.',
+      'Each eye now brakes the wheel on its own side harder than the other one, so the cart both turns toward the lamp and slows as it nears. Far away, the biases push the cart forward. Up close, brightness cancels them out, and it settles where the two balance. A thermostat holds a room at a temperature the same way.',
     spec: cart,
     loss: 'mse',
     start: [0, 1, 0.25, 1, 0, 0.25],
