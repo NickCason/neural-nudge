@@ -61,3 +61,23 @@ describe('the cart: which way of steering was found', () => {
     expect(explain(level, level.spec, [0, 1, 0.3, 1, 0, 0.3])).toContain('yours are equal');
   });
 });
+
+describe('what the solved text says about a cart taught by driving', () => {
+  const byId = (id: string) => levels.find((l) => l.id === id)!;
+  const text = (id: string, starts: number[], examples: number) => {
+    const level = byId(id);
+    return explain(level, level.spec, level.start, { starts, examples });
+  };
+  it('counts the drives and the examples', () => {
+    expect(text('show-it-how', [0], 32)).toContain('You drove once, and the cart kept 32 examples');
+    expect(text('show-it-how', [0, 0, 0], 90)).toContain('You drove 3 times');
+  });
+  it('credits drives from both sides when both were shown', () => {
+    expect(text('off-the-path', [0, 1], 64)).toContain('drives from both sides among its 64 examples');
+    expect(text('off-the-path', [1, 0, 0], 99)).toContain('both sides');
+  });
+  it('calls it luck when only one side was shown, and names the side', () => {
+    expect(text('off-the-path', [1, 1], 60)).toContain('You only drove from start 2');
+    expect(text('off-the-path', [0], 30)).toContain('That was luck');
+  });
+});

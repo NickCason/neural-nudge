@@ -28,7 +28,7 @@ describe('the eyes', () => {
 });
 
 describe('driving levels', () => {
-  const driving = levels.filter((l) => l.view === 'drive');
+  const driving = levels.filter((l) => l.view === 'drive' && !l.teach);
   it('come after the first act and do not begin solved', () => {
     expect(driving.map((l) => l.id)).toEqual(['two-eyes-two-wheels', 'in-the-dark', 'stop-at-the-lamp']);
     for (const level of driving) expect(met(level, level.start), level.id).toBe(false);

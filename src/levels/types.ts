@@ -21,6 +21,8 @@ export interface Tools {
   lines: boolean;
   /** Set the cart driving. */
   go: boolean;
+  /** Drive the cart by hand, and keep the drives as examples. */
+  teach: boolean;
 }
 
 export type ToolName = keyof Tools;
@@ -43,7 +45,7 @@ export interface Level {
   goalText: string;
   winText: string;
   /** Levels with more than one kind of solution describe the one the player found; see explain.ts. */
-  explain?: 'two-hidden' | 'cart-steer' | 'cart-dark';
+  explain?: 'two-hidden' | 'cart-steer' | 'cart-dark' | 'taught' | 'taught-both-sides';
 
   spec: NetSpec;
   loss: LossKind;
@@ -69,6 +71,9 @@ export interface Level {
   box?: { axes: [number, number, number]; range: number; names: [string, string, string] };
   /** Draw the loss as a landscape over two parameters. */
   hill?: { x: number; y: number; range: number };
+
+  /** The examples aren't given: the player makes them by driving the cart. */
+  teach?: boolean;
 
   goal: Goal;
   tools: Partial<Tools>;

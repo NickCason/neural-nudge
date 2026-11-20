@@ -90,8 +90,29 @@ function cartDark(params: ArrayLike<number>): string {
   return `With unequal biases the cart circles to the ${way} until an eye catches the light, then the weights take over. The biases are what it does by default. The weights are how it reacts.`;
 }
 
+/** What the player showed the cart: which start each kept drive was from, and how many examples came of them. */
+export interface Shown {
+  starts: number[];
+  examples: number;
+}
+
+const times = (n: number) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`);
+
+function taught(shown: Shown): string {
+  return `You drove ${times(shown.starts.length)}, and the cart kept ${shown.examples} examples of it: what the eyes saw, and what you did with the wheels. Training never knew about the lamp or the floor. It only turned the dials until the wheels did roughly what yours had, and reaching the lamp came along with that. It's the same loop as the dots: examples, a loss, downhill. Only where the examples come from has changed.`;
+}
+
+function taughtBothSides(shown: Shown, startCount: number): string {
+  const sides = new Set(shown.starts);
+  if (sides.size >= startCount) {
+    return `The cart copies what it was shown, and nothing else. Drives from one side are all turns the same way, so dials fitted to them say nothing dependable about turning the other way. With drives from both sides among its ${shown.examples} examples, one set of dials had to fit both. What it was missing wasn't training time. It was examples.`;
+  }
+  const only = [...sides][0] + 1;
+  return `You only drove from start ${only}, and the cart still made it from the other one. That was luck, not teaching: none of your ${shown.examples} examples covers turning the other way, and dials fitted to one side usually send the cart into a wall from the other. Press Start over and try the same thing again, and it may well not work twice. The dependable fix is a drive from each side.`;
+}
+
 /** The solved text for a level, tailored to the dials, or null to use the level's own. */
-export function explain(level: Level, spec: NetSpec, params: ArrayLike<number>): string | null {
+export function explain(level: Level, spec: NetSpec, params: ArrayLike<number>, shown?: Shown): string | null {
   switch (level.explain) {
     case 'two-hidden':
       return spec.layers.length === 2 && spec.layers[0].size === 2 ? twoHidden(level, spec, params) : null;
@@ -99,6 +120,10 @@ export function explain(level: Level, spec: NetSpec, params: ArrayLike<number>):
       return cartSteer(params);
     case 'cart-dark':
       return cartDark(params);
+    case 'taught':
+      return shown && shown.starts.length ? taught(shown) : null;
+    case 'taught-both-sides':
+      return shown && shown.starts.length ? taughtBothSides(shown, level.drive?.starts.length ?? 2) : null;
     default:
       return null;
   }

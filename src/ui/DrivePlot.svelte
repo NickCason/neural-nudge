@@ -33,6 +33,13 @@
     }),
   );
 
+  const line = (points: { x: number; y: number }[]) => points.map((p) => `${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(' ');
+  /** Drives the player has made by hand, and the one under way. */
+  const shown = $derived(game.drives.map((d) => line(d.path)));
+  const hand = $derived(game.hand);
+  const handTrail = $derived(hand ? line(hand.map((f) => f.pose)) : '');
+  const choosing = $derived(game.tools.teach && drive.starts.length > 1);
+
   const place = (p: Pose) => `translate(${px(p.x)},${py(p.y)}) rotate(${deg(p.a)})`;
   /** How far a wheel's speed streak reaches behind it. */
   const streak = (speed: number) => Math.max(-10, Math.min(16, speed * 12));
@@ -61,10 +68,25 @@
 
     <!-- where each trip starts -->
     {#each drive.starts as start, k (k)}
-      <g transform={place(start)} class="start">
+      <g transform={place(start)} class="start" class:chosen={choosing && game.handStart === k}>
         <path d="M-9,-7 L4,0 L-9,7" />
       </g>
+      {#if choosing}
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+        <g class="pick" class:chosen={game.handStart === k} onclick={() => game.pickStart(k)}>
+          <circle cx={px(start.x)} cy={py(start.y)} r="22" />
+          <text x={px(start.x)} y={py(start.y) + 26} text-anchor="middle">{k + 1}</text>
+        </g>
+      {/if}
     {/each}
+
+    <!-- what the player has shown it -->
+    {#each shown as points, k (k)}
+      <polyline class="shown" {points} />
+    {/each}
+    {#if hand}
+      <polyline class="driven" points={handTrail} />
+    {/if}
 
     {#each routes as r (r.k)}
       <polyline class="planned" class:met={r.met} points={r.planned} />
@@ -83,7 +105,7 @@
       {/if}
     {/each}
 
-    {#each routes as r (r.k)}
+    {#each hand && game.live ? [{ k: 0, frame: game.live }] : routes as r (r.k)}
       {@const f = r.frame}
       <g transform="{place(f.pose)} scale(1.3)" class="cart">
         <!-- what each eye can see: a faint wedge, brighter the more light it catches -->
@@ -149,6 +171,39 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     opacity: 0.7;
+  }
+
+  .start.chosen path {
+    stroke: var(--chalk);
+    opacity: 1;
+  }
+
+  .pick {
+    cursor: pointer;
+  }
+
+  .pick circle {
+    fill: transparent;
+  }
+
+  .pick text {
+    fill: var(--dust);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .pick.chosen text {
+    fill: var(--chalk);
+  }
+
+  /* The drives the cart was shown: plain chalk, fainter than the one being driven now. */
+  .shown {
+    fill: none;
+    stroke: var(--chalk);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.4;
   }
 
   /* Blue is guidance everywhere in this game: here it's the path the cart is going to take. */

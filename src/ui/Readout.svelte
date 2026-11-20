@@ -70,6 +70,15 @@
     </div>
   {/if}
 
+  {#if game.level.teach}
+    <div class="side">
+      <span class="label">Examples</span>
+      <span class="num">{game.data.length}</span>
+      <span class="label">{name}</span>
+      <span class="num">{game.data.length ? lossText(game.loss) : '—'}</span>
+    </div>
+  {/if}
+
   {#if stepping}
     <div class="steps">
       <span class="label">{game.tools.nudge ? 'Nudges' : 'Steps'}</span>

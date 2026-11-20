@@ -97,6 +97,14 @@ export function sense(pose: Pose, lamp: Point): [number, number] {
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
+/** Where the cart is one frame later, with its wheels turning at these speeds. */
+export function advance(pose: Pose, wheels: [number, number]): Pose {
+  const forward = ((wheels[0] + wheels[1]) / 2) * SPEED;
+  const turn = ((wheels[1] - wheels[0]) / TRACK) * SPEED;
+  const a = pose.a + turn * DT;
+  return { x: pose.x + Math.cos(a) * forward * DT, y: pose.y + Math.sin(a) * forward * DT, a };
+}
+
 /** Drive from one starting pose for the whole time allowed, and report how it went. */
 export function trip(spec: NetSpec, params: ArrayLike<number>, drive: DriveSpec, start: Pose, goal: DriveGoal): Trip {
   const frames: Frame[] = [];
@@ -131,10 +139,7 @@ export function trip(spec: NetSpec, params: ArrayLike<number>, drive: DriveSpec,
     quiet = Math.max(Math.abs(wheels[0]), Math.abs(wheels[1])) < STILL ? quiet + 1 : 0;
     if (goal === 'park' && quiet >= SETTLE) break;
 
-    const forward = ((wheels[0] + wheels[1]) / 2) * SPEED;
-    const turn = ((wheels[1] - wheels[0]) / TRACK) * SPEED;
-    const a = pose.a + turn * DT;
-    pose = { x: pose.x + Math.cos(a) * forward * DT, y: pose.y + Math.sin(a) * forward * DT, a };
+    pose = advance(pose, wheels);
   }
 
   const last = frames[frames.length - 1];

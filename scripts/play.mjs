@@ -332,14 +332,86 @@ console.log('15 Stop at the lamp');
   await button('Go').click();
   await page.locator('.goal.solved').waitFor({ timeout: 30000 });
   check(true, 'the cart comes to rest by the lamp');
+  await page.screenshot({ path: 'shots/played-15.png' });
+}
+await next('Show it how');
+
+/** Drive the cart by hand with the arrow keys, steering at the lamp, until the drive ends. */
+async function driveByHand() {
+  await button('Drive it yourself').click();
+  let held = null;
+  for (let i = 0; i < 400; i++) {
+    const state = await page.evaluate(() => {
+      const cart = document.querySelector('.floor .cart');
+      const lamp = document.querySelector('.floor .lamp');
+      if (!document.querySelector('.tool.steer') || !cart || !lamp) return null;
+      const m = /translate\(([-\d.]+),\s*([-\d.]+)\) rotate\(([-\d.]+)\)/.exec(cart.getAttribute('transform'));
+      return m && { x: +m[1], y: +m[2], a: +m[3], lx: +lamp.getAttribute('cx'), ly: +lamp.getAttribute('cy') };
+    });
+    if (!state) break;
+    // Screen angles run clockwise, so a positive difference means the lamp is to the cart's right.
+    let off = (Math.atan2(state.ly - state.y, state.lx - state.x) * 180) / Math.PI - state.a;
+    off = ((off + 540) % 360) - 180;
+    const want = off > 10 ? 'ArrowRight' : off < -10 ? 'ArrowLeft' : 'ArrowUp';
+    if (want !== held) {
+      if (held) await page.keyboard.up(held);
+      if (want) await page.keyboard.down(want);
+      held = want;
+    }
+    await page.waitForTimeout(40);
+  }
+  if (held) await page.keyboard.up(held);
+}
+const examples = async () => Number(await page.locator('.readout .side .num').first().innerText());
+async function trainFor(ms) {
+  await button('Run').click();
+  await page.waitForTimeout(ms);
+  await button('Pause').click();
+}
+
+console.log('16 Show it how');
+{
+  check((await dials().count()) === 6, 'the same six dials');
+  check((await examples()) === 0, 'it starts with no examples');
+  check(await button('Run').isDisabled(), 'and nothing to train on');
+  await button('Go').click();
+  await page.locator('.goal .trouble').waitFor({ timeout: 20000 });
+  check(!(await solved()), 'untaught, it goes nowhere');
+  await driveByHand();
+  check((await examples()) > 10, 'a drive by hand that reaches the lamp is kept as examples');
+  await trainFor(4000);
+  check((await headline()).includes('seconds to reach the lamp'), 'after training on the drive, the planned path reaches the lamp');
+  await page.screenshot({ path: 'shots/played-16.png' });
+  await button('Go').click();
+  await page.locator('.goal.solved').waitFor({ timeout: 20000 });
+  check((await page.locator('.goal.solved').innerText()).includes('You drove once'), 'and the solved text says what was shown');
+}
+await next('Off the path');
+
+console.log('17 Off the path');
+{
+  await driveByHand();
+  await trainFor(4000);
+  check((await headline()).startsWith('1'), 'shown one side only, it reaches the lamp from that side only');
+  await button('Go').click();
+  await page.getByText('Nothing you\'ve shown it covers that side').waitFor({ timeout: 20000 });
+  check(!(await solved()), 'and driving it says what is missing');
+  await page.screenshot({ path: 'shots/missed-17.png' });
+  await button('Drive from start 2').click();
+  await driveByHand();
+  await trainFor(4000);
+  check((await headline()).startsWith('2'), 'shown both sides, it reaches the lamp from both');
+  await button('Go').click();
+  await page.locator('.goal.solved').waitFor({ timeout: 20000 });
+  check((await page.locator('.goal.solved').innerText()).includes('both sides'), 'the solved text is the one for drives from both sides');
   await page.waitForTimeout(2600);
   check(await page.getByText("That's every level so far").isVisible(), 'the last level says what comes next');
-  await page.screenshot({ path: 'shots/played-15.png' });
+  await page.screenshot({ path: 'shots/played-17.png' });
 }
 
 await page.reload();
 await page.waitForSelector('svg.net');
-check((await page.locator('.pip.done').count()) === 15, 'progress survives a reload');
+check((await page.locator('.pip.done').count()) === 17, 'progress survives a reload');
 
 console.log(problems.length ? `console problems:\n${problems.join('\n')}` : 'no console errors');
 await browser.close();

@@ -91,3 +91,69 @@ export const act2: Level[] = [
     errorName: 'loss',
   },
 ];
+
+const untaught = [0, 0, 0, 0, 0, 0];
+
+/** Act 3: the examples come from you. */
+export const act3: Level[] = [
+  {
+    id: 'show-it-how',
+    title: 'Show it how',
+    text: [
+      "You set the cart's dials yourself in the last three levels. Here they all start at zero and you can't turn them, so the cart just sits there.",
+      'Drive it instead. Press Drive it yourself, then hold ◀ or ▶ to steer. The arrow keys work too, and the cart waits until you first touch one. Ten times a second the cart writes down what its eyes saw and what you did with the wheels.',
+      "Each of those is an example, exactly like a dot in the earlier levels: an input, and the right answer for it. Run does what it has always done, and turns the dials downhill until the network's answers are close to yours. Watch the dashed line while it runs, then press Go.",
+    ],
+    goalText: 'Teach the cart to reach the lamp.',
+    winText:
+      "Training never knew about the lamp or the floor. It only turned the dials until the wheels did roughly what yours had, and reaching the lamp came along with that. It's the same loop as the dots: examples, a loss, downhill.",
+    explain: 'taught',
+    spec: cart,
+    loss: 'mse',
+    start: untaught,
+    data: [],
+    teach: true,
+    view: 'drive',
+    drive: { lamp: { x: 0, y: 0.3 }, starts: [{ x: -0.7, y: -0.7, a: deg(120) }], seconds: 14 },
+    names,
+    goal: { kind: 'arrive' },
+    tools: { teach: true, step: true, run: true, go: true },
+    fresh: ['teach'],
+    rate: { value: 0.3, min: 0.05, max: 0.5 },
+    runSpeed: 120,
+    errorName: 'loss',
+  },
+  {
+    id: 'off-the-path',
+    title: 'Off the path',
+    text: [
+      'Two starting places now, one on each side of the lamp. Click a start on the floor, or its number below the network, to choose where you drive from.',
+      'Drive from one side only, train, and press Go. Watch what the cart does from the side you never showed it.',
+      "Then fix it. You still can't touch the dials. All you can give it is more examples.",
+    ],
+    goalText: 'Reach the lamp from both starts.',
+    winText:
+      'The cart copies what it was shown, and nothing else. With drives from both sides, one set of dials had to fit both. What it was missing was examples.',
+    explain: 'taught-both-sides',
+    spec: cart,
+    loss: 'mse',
+    start: untaught,
+    data: [],
+    teach: true,
+    view: 'drive',
+    drive: {
+      lamp: { x: 0, y: 0.3 },
+      starts: [
+        { x: -0.7, y: -0.7, a: deg(120) },
+        { x: 0.7, y: -0.7, a: deg(60) },
+      ],
+      seconds: 14,
+    },
+    names,
+    goal: { kind: 'arrive' },
+    tools: { teach: true, step: true, run: true, go: true },
+    rate: { value: 0.3, min: 0.05, max: 0.5 },
+    runSpeed: 120,
+    errorName: 'loss',
+  },
+];

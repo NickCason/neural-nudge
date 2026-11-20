@@ -6,6 +6,9 @@ import type { Level, Tools } from './levels/types';
 import { descend, freshParams, goalMet, seedFor, specFor } from './play';
 import { DT, trips } from './sim/cart';
 import type { Frame, Trip } from './sim/cart';
+import { PATIENCE, ended, handFrame, keep } from './sim/teach';
+import type { Drive, Steer } from './sim/teach';
+import { advance } from './sim/cart';
 
 const STORE_KEY = 'nudge.done.v1';
 const NO_TOOLS: Tools = {
@@ -19,6 +22,7 @@ const NO_TOOLS: Tools = {
   grow: false,
   lines: false,
   go: false,
+  teach: false,
 };
 
 /** How far a dial can be turned by hand. Training may take values past this. */
@@ -69,6 +73,18 @@ class Game {
   clock = $state(0);
   /** The last run finished without meeting the goal. */
   fellShort = $state(false);
+  /** Drives by hand that reached the lamp, kept as examples to train on. */
+  drives = $state.raw<Drive[]>([]);
+  /** The drive by hand that is under way, frame by frame; null when nobody is driving. */
+  hand = $state.raw<Frame[] | null>(null);
+  /** Which way the driver is steering right now. */
+  steer = $state<Steer>(0);
+  /** The drive by hand has set off. Until the driver first touches the controls, the cart waits. */
+  rolling = $state(false);
+  /** Which starting place the next drive by hand sets off from. */
+  handStart = $state(0);
+  /** How the last drive by hand ended, when it wasn't kept. */
+  handNote = $state<'' | 'wall' | 'slow'>('');
   done = $state<string[]>(loadDone());
   unlockAll = $state(false);
 
@@ -76,6 +92,7 @@ class Game {
   #startLoss = 0;
   #frame = 0;
   #driveFrame = 0;
+  #handFrame = 0;
   #last = 0;
   #owed = 0;
 
@@ -90,9 +107,11 @@ class Game {
   locked: number[] = $derived(this.level.grow ? [] : (this.level.locked ?? []));
   /** Everything training has to leave alone. */
   fixed: number[] = $derived([...this.frozen, ...this.locked]);
-  evaluation = $derived(evaluate(this.spec, this.params, this.level.data, this.level.loss));
+  /** The examples being trained on: the level's own, or the ones the player made by driving. */
+  data = $derived(this.level.teach ? this.drives.flatMap((d) => d.samples) : this.level.data);
+  evaluation = $derived(evaluate(this.spec, this.params, this.data, this.level.loss));
   loss = $derived(this.evaluation.loss);
-  correct = $derived(countCorrect(this.spec, this.params, this.level.data));
+  correct = $derived(countCorrect(this.spec, this.params, this.data));
   /** Where the cart will go from each starting place, with the dials as they are. */
   trips: Trip[] = $derived.by(() => {
     const level = this.level;
@@ -102,16 +121,24 @@ class Game {
   driveMet = $derived(this.trips.length > 0 && this.trips.every((t) => t.met));
   /** What the cart's eyes and wheels are doing at this moment of the first trip. */
   live: Frame | null = $derived.by(() => {
+    const drive = this.level.drive;
+    if (this.hand && drive) {
+      // Before the driver sets off, the cart is waiting at the chosen start.
+      return this.hand[this.hand.length - 1] ?? handFrame(drive.starts[this.handStart], drive.lamp, 0);
+    }
     const first = this.trips[0];
     return first ? first.frames[Math.min(this.clock, first.frames.length - 1)] : null;
   });
   /** What to say once solved: about the solution these dials actually are, where that varies. */
-  winText = $derived(explain(this.level, this.spec, this.params) ?? this.level.winText);
+  winText = $derived(
+    explain(this.level, this.spec, this.params, { starts: this.drives.map((d) => d.start), examples: this.data.length }) ??
+      this.level.winText,
+  );
   outOfSteps = $derived(
     !this.solved && this.level.stepBudget !== undefined && this.steps >= this.level.stepBudget,
   );
   /** Solving a level doesn't lock it: you can keep training and watch the loss keep falling. */
-  canStep = $derived(!this.outOfSteps && !this.diverged);
+  canStep = $derived(!this.outOfSteps && !this.diverged && !this.hand && (!this.level.teach || this.data.length > 0));
   /** The step budget ran out with the loss higher than it started: the steps were too big. */
   overshot = $derived(this.diverged || (this.outOfSteps && this.loss > this.#startLoss));
   isLast = $derived(this.index === levels.length - 1);
@@ -160,6 +187,10 @@ class Game {
     this.hover = null;
     this.spotlight = null;
     this.park();
+    this.endHand();
+    this.drives = [];
+    this.handStart = 0;
+    this.handNote = '';
     this.#shuffles = 0;
     this.trail = level.hill ? [[level.start[level.hill.x], level.start[level.hill.y]]] : [];
     this.#startLoss = evaluate(specFor(level, this.hiddenSize), this.params, level.data, level.loss).loss;
@@ -227,7 +258,7 @@ class Game {
 
   /** Set the cart off along its trips, or stop it and put it back. */
   setOff() {
-    if (!this.tools.go) return;
+    if (!this.tools.go || this.hand) return;
     if (this.driving) {
       this.park();
       return;
@@ -261,6 +292,86 @@ class Game {
     this.fellShort = false;
   }
 
+  /** Take the wheel: drive the cart by hand from the chosen start, or give up a drive under way. */
+  takeWheel() {
+    if (!this.tools.teach) return;
+    if (this.hand) {
+      this.endHand();
+      return;
+    }
+    const drive = this.level.drive;
+    if (!drive) return;
+    this.stop();
+    this.park();
+    this.handNote = '';
+    this.steer = 0;
+    this.rolling = false;
+    this.effort++;
+    let pose = { ...drive.starts[this.handStart] };
+    let frames: Frame[] = [];
+    this.hand = frames;
+    let last = performance.now();
+    let owed = 0;
+    const tick = (now: number) => {
+      if (!this.hand) return;
+      owed = this.rolling ? Math.min(owed + (now - last) / 1000 / DT, 6) : 0;
+      last = now;
+      let moved = false;
+      while (owed >= 1) {
+        owed--;
+        const end = ended(pose, drive.lamp);
+        if (end || frames.length >= PATIENCE / DT) {
+          this.finishHand(end === 'lamp' ? keep(this.handStart, frames) : null, end === 'wall' ? 'wall' : 'slow');
+          return;
+        }
+        const frame = handFrame(pose, drive.lamp, this.steer);
+        frames = [...frames, frame];
+        pose = advance(pose, frame.wheels);
+        moved = true;
+      }
+      if (moved) this.hand = frames;
+      this.#handFrame = requestAnimationFrame(tick);
+    };
+    this.#handFrame = requestAnimationFrame(tick);
+  }
+
+  /** Steer the drive by hand. The first touch of the controls, even straight ahead, sets the cart off. */
+  turnWheel(way: Steer) {
+    if (!this.hand) return;
+    this.steer = way;
+    this.rolling = true;
+  }
+
+  /** Choose where the next drive by hand starts. */
+  pickStart(k: number) {
+    if (!this.tools.teach || this.hand || !this.level.drive?.starts[k]) return;
+    this.handStart = k;
+  }
+
+  /** Throw away every drive, and with them everything the cart was trained on. */
+  forgetDrives() {
+    if (!this.tools.teach) return;
+    this.endHand();
+    this.stop();
+    this.drives = [];
+    this.handNote = '';
+    this.changed();
+  }
+
+  private finishHand(kept: Drive | null, why: 'wall' | 'slow') {
+    this.endHand();
+    if (kept) this.drives = [...this.drives, kept];
+    else this.handNote = why;
+    this.changed();
+  }
+
+  private endHand() {
+    cancelAnimationFrame(this.#handFrame);
+    this.hand = null;
+    this.steer = 0;
+    this.rolling = false;
+  }
+
   toggleRun() {
     if (this.running) this.stop();
     else this.start();
@@ -268,6 +379,7 @@ class Game {
 
   private start() {
     if (!this.tools.run || !this.canStep) return;
+    this.park();
     this.running = true;
     this.#last = performance.now();
     this.#owed = 1; // take the first step right away

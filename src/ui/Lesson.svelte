@@ -8,6 +8,13 @@
     const goal = game.level.goal.kind === 'park' ? 'park' : 'arrive';
     const reasons = game.trips.map((t) => shortfall(t, goal)).filter((r) => r !== null);
     const why = reasons[0];
+    if (game.level.teach) {
+      const missed = game.trips.findIndex((t) => !t.met);
+      const many = game.trips.length > 1;
+      if (many && !game.drives.some((d) => d.start === missed))
+        return `From start ${missed + 1} it didn't get there. Nothing you've shown it covers that side: every example it has is from start ${[...new Set(game.drives.map((d) => d.start + 1))].join(' and ')}.`;
+      return `It didn't get there${many ? ` from start ${missed + 1}` : ''}. Press Run to train longer, or drive again to give it more examples.`;
+    }
     if (why === 'lamp') return 'It ran into the lamp. It has to be stopped before it gets that close: brake harder, or push less.';
     if (why === 'wall') return 'It ran into the wall. Look at which way the dashed line bends, and which wheel is winning.';
     if (why === 'rolling-inside')
@@ -35,7 +42,7 @@
       <h2 class="hand">Solved</h2>
       <p>{game.winText}</p>
       {#if game.isLast}
-        <p class="after">That's every level so far. Next up: teaching the cart by driving it yourself.</p>
+        <p class="after">That's every level so far. More are on the way.</p>
       {:else}
         <button class="next" onclick={() => game.next()}>Next level</button>
       {/if}
@@ -48,6 +55,11 @@
         </p>
       {:else if game.outOfSteps}
         <p class="trouble">Out of steps. Start over and try a different step size.</p>
+      {/if}
+      {#if game.handNote === 'wall'}
+        <p class="trouble">That drive hit the wall, so it wasn't kept. Only drives that reach the lamp become examples.</p>
+      {:else if game.handNote === 'slow'}
+        <p class="trouble">That drive didn't reach the lamp, so it wasn't kept.</p>
       {/if}
       {#if fellShort}
         <p class="trouble">{fellShort}</p>

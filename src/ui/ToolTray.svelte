@@ -9,11 +9,54 @@
   const toSlider = (rate: number) => Math.log(rate / range.min) / Math.log(range.max / range.min);
   const fromSlider = (t: number) => range.min * Math.pow(range.max / range.min, t);
 
+  const starts = $derived(game.level.drive?.starts ?? []);
+
+  /** Hold a steering button to steer; let go to straighten up. */
+  function hold(node: HTMLElement, way: 1 | -1) {
+    const on = (e: Event) => {
+      e.preventDefault();
+      game.turnWheel(way);
+    };
+    const off = () => {
+      if (game.steer === way) game.turnWheel(0);
+    };
+    node.addEventListener('pointerdown', on);
+    for (const name of ['pointerup', 'pointerleave', 'pointercancel']) node.addEventListener(name, off);
+    return {
+      destroy() {
+        node.removeEventListener('pointerdown', on);
+        for (const name of ['pointerup', 'pointerleave', 'pointercancel']) node.removeEventListener(name, off);
+      },
+    };
+  }
+
+  const KEYS: Record<string, 1 | -1> = { ArrowLeft: 1, a: 1, A: 1, ArrowRight: -1, d: -1, D: -1 };
+  function keydown(e: KeyboardEvent) {
+    if (!game.hand) return;
+    const way = KEYS[e.key];
+    const ahead = e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W';
+    if (!way && !ahead) return;
+    e.preventDefault();
+    game.turnWheel(way ?? game.steer);
+  }
+  function keyup(e: KeyboardEvent) {
+    const way = KEYS[e.key];
+    if (game.hand && way && game.steer === way) game.turnWheel(0);
+  }
+
   function tidy(rate: number): number {
     const digits = rate < 0.1 ? 3 : 2;
     return Number(rate.toFixed(digits));
   }
 </script>
+
+<svelte:window onkeydown={keydown} onkeyup={keyup} />
+
+{#snippet goButton()}
+  <button class="tool primary" disabled={!!game.hand} onclick={() => game.setOff()}>
+    {@render tag('go')}{game.driving ? 'Stop' : 'Go'}
+  </button>
+{/snippet}
 
 {#snippet tag(tool: ToolName)}
   {#if fresh(tool)}<span class="tag hand" aria-hidden="true">new</span>{/if}
@@ -40,10 +83,35 @@
     </div>
   {/if}
 
-  {#if game.tools.go}
-    <button class="tool primary" onclick={() => game.setOff()}>
-      {@render tag('go')}{game.driving ? 'Stop' : 'Go'}
-    </button>
+  {#if game.tools.teach}
+    {#if game.hand}
+      <div class="group wheel">
+        <button class="tool steer" aria-label="Steer left" class:held={game.steer === 1} use:hold={1}>◀</button>
+        <button class="tool steer" aria-label="Steer right" class:held={game.steer === -1} use:hold={-1}>▶</button>
+        <button class="tool" onclick={() => game.takeWheel()}>Give up</button>
+        {#if !game.rolling}<span class="label">Hold ◀ or ▶ to set off</span>{/if}
+      </div>
+    {:else}
+      <button class="tool primary" onclick={() => game.takeWheel()}>
+        {@render tag('teach')}Drive it yourself
+      </button>
+      {#if starts.length > 1}
+        <div class="group">
+          <span class="label">from start</span>
+          {#each starts as _, k (k)}
+            <button
+              class="tool square"
+              class:chosen={game.handStart === k}
+              aria-pressed={game.handStart === k}
+              aria-label="Drive from start {k + 1}"
+              onclick={() => game.pickStart(k)}>{k + 1}</button
+            >
+          {/each}
+        </div>
+      {/if}
+    {/if}
+  {:else if game.tools.go}
+    {@render goButton()}
   {/if}
 
   {#if game.tools.step}
@@ -76,6 +144,14 @@
       />
       <span class="num">{game.rate < 0.1 ? game.rate.toFixed(3) : game.rate.toFixed(2)}</span>
     </label>
+  {/if}
+
+  {#if game.tools.teach && game.tools.go}
+    {@render goButton()}
+  {/if}
+
+  {#if game.tools.teach && game.drives.length > 0 && !game.hand}
+    <button class="tool" onclick={() => game.forgetDrives()}>Forget my drives</button>
   {/if}
 
   {#if game.tools.shuffle}
@@ -133,6 +209,21 @@
     padding: 0;
     font-size: var(--step-1);
     line-height: 1;
+  }
+
+  .tool.steer {
+    min-width: 4.2rem;
+    min-height: 3.2rem;
+    font-size: var(--step-1);
+    touch-action: none;
+    user-select: none;
+  }
+
+  .tool.steer.held,
+  .tool.chosen {
+    background: var(--sky);
+    border-color: var(--sky);
+    color: var(--board-deep);
   }
 
   .tool.quiet {
