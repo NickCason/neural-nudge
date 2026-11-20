@@ -32,6 +32,21 @@ export function clumps(seed: number, list: Clump[]): Sample[] {
   return out;
 }
 
+/** A clump of one kind in the middle with the other kind scattered all the way round it. */
+export function ring(seed: number, inside: number, outside: number, radius: number): Sample[] {
+  const next = rng(seed);
+  const out: Sample[] = [];
+  for (let i = 0; i < inside; i++) {
+    out.push({ x: [round(clip(gaussian(next), 1.5) * 0.13), round(clip(gaussian(next), 1.5) * 0.13)], y: [1] });
+  }
+  for (let i = 0; i < outside; i++) {
+    const angle = ((i + next() * 0.6) / outside) * Math.PI * 2;
+    const r = radius + (next() - 0.5) * 0.14;
+    out.push({ x: [round(Math.cos(angle) * r), round(Math.sin(angle) * r)], y: [0] });
+  }
+  return out;
+}
+
 function clip(v: number, limit: number): number {
   return Math.max(-limit, Math.min(limit, v));
 }

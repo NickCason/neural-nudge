@@ -25,7 +25,7 @@
       <div>
         <dt>Value</dt>
         <dd>
-          {#if game.tools.drag}
+          {#if game.tools.drag && !game.fixed.includes(info.index)}
             <input
               class="num"
               type="number"
@@ -48,7 +48,9 @@
         </div>
       {/if}
     </dl>
-    {#if game.tools.hints}
+    {#if game.fixed.includes(info.index)}
+      <p class="explain">Locked on this level. You can read it but not turn it.</p>
+    {:else if game.tools.hints}
       <p class="explain">{slopeText}</p>
     {/if}
   {:else}

@@ -23,7 +23,7 @@ npm run dev        # http://127.0.0.1:8097
 npm test           # gradients against finite differences; every level proven solvable; terrain visibility
 npm run build      # type-check and build to dist/
 npm run preview    # serve dist/ on :8097
-npm run e2e        # play all nine levels through the real UI (needs preview running)
+npm run e2e        # play every level through the real UI (needs preview running)
 npm run shots      # screenshot every level into shots/
 ```
 

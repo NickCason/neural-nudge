@@ -1,9 +1,12 @@
 import type { NetSpec } from '../engine/net';
-import { clumps, linePoints } from './data';
+import { freshParams } from '../play';
+import { clumps, linePoints, ring } from './data';
 import type { Level } from './types';
 
 const oneInput: NetSpec = { inputs: 1, layers: [{ size: 1, act: 'linear' }] };
 const sorter: NetSpec = { inputs: 2, layers: [{ size: 1, act: 'sigmoid' }] };
+/** Two hidden neurons feeding one output. Dials 0-2 and 3-5 are the hidden neurons, 6-8 the output. */
+const twoHidden: NetSpec = { inputs: 2, layers: [{ size: 2, act: 'tanh' }, { size: 1, act: 'sigmoid' }] };
 
 const corners = clumps(31, [
   { at: [-0.5, 0.5], kind: 1, count: 5, spread: 0.11 },
@@ -194,27 +197,106 @@ export const levels: Level[] = [
     errorName: 'loss',
   },
   {
-    id: 'bend-the-line',
-    title: 'Bend the line',
+    id: 'two-opinions',
+    title: 'Two opinions',
     text: [
-      'Put neurons between the inputs and the output. Each hidden neuron draws its own line, and the output neuron combines them.',
-      'Add hidden neurons, then run. Click any neuron to see the answer it alone is giving.',
-      'If training gets stuck, shuffle. That gives every dial a fresh random start, and some starts are luckier than others.',
+      "Here are two neurons, each drawing its own line across the corners that beat you. Neither is right alone. They're called hidden neurons, because their answers never leave the machine.",
+      "Their answers go to a third neuron instead. It can't see where a dot is any more. All it gets is two numbers per dot: what neuron 1 said and what neuron 2 said, each running from \u22121 for no to +1 for yes.",
+      "The lower picture is the dots as the output neuron sees them. The yellow ones sit where 1 says yes and 2 says no. Turn the output neuron's three dials until it says yes only there.",
     ],
     goalText: 'Get every dot on the right side.',
     winText:
-      "That's a neural network: layers of simple neurons, trained by stepping downhill. Everything from here is this idea with more dials.",
-    spec: sorter,
+      'Look at what the output neuron did. It drew one straight line, like always. But it drew it on the lower picture, where the hidden neurons had already moved the yellow dots into a corner of their own. One straight cut down there comes out as two cuts up top.',
+    spec: twoHidden,
     loss: 'bce',
-    start: [0.8, 0.6, -0.2],
+    start: [4, 4, 2, 4, 4, -2, 0.6, 0.6, 0.2],
+    locked: [0, 1, 2, 3, 4, 5],
     data: corners,
     view: 'plane',
     goal: { kind: 'allCorrect' },
-    tools: { drag: true, hints: true, step: true, run: true, rate: true, shuffle: true, grow: true },
-    fresh: ['grow', 'shuffle'],
-    rate: { value: 1, min: 0.02, max: 5 },
-    runSpeed: 120,
+    tools: { drag: true },
     errorName: 'loss',
-    grow: { max: 4, act: 'tanh' },
+    show: { lines: true, hiddenSpace: true },
+  },
+  {
+    id: 'move-the-lines',
+    title: 'Move the lines',
+    text: [
+      'The output neuron keeps the rule you just gave it: yes where 1 says yes and 2 says no. Its dials are locked this time, and the dots are different.',
+      "So change what the hidden neurons say. Drag a line by its round handle to slide it, or by its small handle to swing it. The ticks mark its yes side. Watch the dials while you drag: a line's direction is its two weights, and its position is its bias.",
+      'Keep an eye on the lower picture. Every time a line moves, the dots move there.',
+    ],
+    goalText: 'Get every dot on the right side.',
+    winText:
+      "The rule on top never changed. You solved a new problem only by changing where the hidden neurons draw their lines, which changes where every dot lands in the lower picture. Rearranging the dots until one straight cut works: that's the whole job of a hidden layer.",
+    spec: twoHidden,
+    loss: 'bce',
+    start: [4, 4, 2, 4, 4, -2, 3, -3, -2],
+    locked: [6, 7, 8],
+    data: clumps(51, [
+      { at: [0, 0.45], kind: 1, count: 5, spread: 0.1 },
+      { at: [0, -0.45], kind: 1, count: 5, spread: 0.1 },
+      { at: [-0.7, 0.3], kind: 0, count: 3, spread: 0.1 },
+      { at: [-0.7, -0.4], kind: 0, count: 3, spread: 0.1 },
+      { at: [0.7, 0.4], kind: 0, count: 3, spread: 0.1 },
+      { at: [0.7, -0.3], kind: 0, count: 3, spread: 0.1 },
+    ]),
+    view: 'plane',
+    goal: { kind: 'allCorrect' },
+    tools: { drag: true, lines: true },
+    fresh: ['lines'],
+    errorName: 'loss',
+    show: { lines: true, hiddenSpace: true },
+  },
+  {
+    id: 'hands-off-again',
+    title: 'Hands off again',
+    text: [
+      'Back to the corners. All nine dials start out random and none of them are locked. You have Step and Run.',
+      "Training doesn't know about lines or pictures. It measures nine slopes and steps downhill, the same as it did with two dials. Watch what that does to the two lines, and to the lower picture.",
+      'If it settles somewhere useless, shuffle. That gives every dial a fresh random start, and some starts are luckier than others.',
+    ],
+    goalText: 'Get every dot on the right side.',
+    winText:
+      "Nobody told the hidden neurons to bracket the yellow dots. Stepping downhill on the loss put the lines there, because that's what makes the lower picture splittable by one straight cut.",
+    spec: twoHidden,
+    loss: 'bce',
+    start: freshParams(twoHidden, 2),
+    data: corners,
+    view: 'plane',
+    goal: { kind: 'allCorrect' },
+    tools: { drag: true, lines: true, hints: true, step: true, run: true, rate: true, shuffle: true },
+    fresh: ['shuffle'],
+    rate: { value: 1, min: 0.02, max: 5 },
+    runSpeed: 12,
+    seed: 500,
+    errorName: 'loss',
+    show: { lines: true, hiddenSpace: true },
+  },
+  {
+    id: 'fence-it-in',
+    title: 'Fence it in',
+    text: [
+      "Yellow in the middle, pink all the way round. Two lines can make a stripe or a wedge, but they can't surround anything. Run it and see.",
+      'Every hidden neuron you add is one more line for the output neuron to use. Add one and run again.',
+      'Point at a neuron to light up its line, and find which neuron holds up which side of the fence.',
+    ],
+    goalText: 'Get every dot on the right side.',
+    winText:
+      'That curved edge is straight lines, softly blended. More neurons means more lines and a smoother bend. Every shape a network like this can draw is built this way.',
+    spec: sorter,
+    loss: 'bce',
+    start: [0.8, 0.6, -0.2],
+    data: ring(41, 8, 14, 0.74),
+    view: 'plane',
+    goal: { kind: 'allCorrect' },
+    tools: { drag: true, lines: true, hints: true, step: true, run: true, rate: true, shuffle: true, grow: true },
+    fresh: ['grow'],
+    rate: { value: 1, min: 0.02, max: 5 },
+    runSpeed: 30,
+    seed: 4000,
+    errorName: 'loss',
+    grow: { max: 5, act: 'tanh', start: 2 },
+    show: { lines: true },
   },
 ];

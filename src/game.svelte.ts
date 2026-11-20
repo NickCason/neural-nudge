@@ -2,7 +2,7 @@ import { countCorrect, evaluate, paramLayout } from './engine/net';
 import type { ParamInfo } from './engine/net';
 import { levels } from './levels/act1';
 import type { Level, Tools } from './levels/types';
-import { descend, freshParams, goalMet, specFor } from './play';
+import { descend, freshParams, goalMet, seedFor, specFor } from './play';
 
 const STORE_KEY = 'nudge.done.v1';
 const NO_TOOLS: Tools = {
@@ -14,10 +14,11 @@ const NO_TOOLS: Tools = {
   rate: false,
   shuffle: false,
   grow: false,
+  lines: false,
 };
 
 /** How far a dial can be turned by hand. Training may take values past this. */
-export const DIAL_LIMIT = 4;
+export const DIAL_LIMIT = 6;
 
 function loadDone(): string[] {
   try {
@@ -50,6 +51,8 @@ class Game {
   probe = $state<number | null>(null);
   /** Neuron whose answer the plane is showing; null means the output. */
   focus = $state<{ layer: number; neuron: number } | null>(null);
+  /** Hidden neuron being pointed at, so its line and its circle can light up together. */
+  hover = $state<number | null>(null);
   done = $state<string[]>(loadDone());
   unlockAll = $state(false);
 
@@ -65,7 +68,11 @@ class Game {
   spec = $derived(specFor(this.level, this.hiddenSize));
   layout: ParamInfo[] = $derived(paramLayout(this.spec));
   /** Parameters that exist but are fixed and not drawn. Only applies before the network grows. */
-  frozen: number[] = $derived(this.hiddenSize === 0 ? (this.level.hidden ?? []) : []);
+  frozen: number[] = $derived(this.level.grow ? (this.hiddenSize === 0 ? (this.level.hidden ?? []) : []) : (this.level.hidden ?? []));
+  /** Parameters that are drawn but can't be changed, by hand or by training. */
+  locked: number[] = $derived(this.level.grow ? [] : (this.level.locked ?? []));
+  /** Everything training has to leave alone. */
+  fixed: number[] = $derived([...this.frozen, ...this.locked]);
   evaluation = $derived(evaluate(this.spec, this.params, this.level.data, this.level.loss));
   loss = $derived(this.evaluation.loss);
   correct = $derived(countCorrect(this.spec, this.params, this.level.data));
@@ -105,8 +112,11 @@ class Game {
     this.stop();
     const level = levels[i];
     this.index = i;
-    this.hiddenSize = 0;
-    this.params = level.start.slice();
+    this.hiddenSize = level.grow?.start ?? 0;
+    this.params =
+      this.hiddenSize > 0
+        ? freshParams(specFor(level, this.hiddenSize), seedFor(level, this.hiddenSize, 0))
+        : level.start.slice();
     this.rate = level.rate?.value ?? 0.1;
     this.steps = 0;
     this.effort = 0;
@@ -116,14 +126,15 @@ class Game {
     this.selected = null;
     this.probe = null;
     this.focus = null;
+    this.hover = null;
     this.#shuffles = 0;
     this.trail = level.hill ? [[level.start[level.hill.x], level.start[level.hill.y]]] : [];
-    this.#startLoss = evaluate(level.spec, level.start, level.data, level.loss).loss;
+    this.#startLoss = evaluate(specFor(level, this.hiddenSize), this.params, level.data, level.loss).loss;
   }
 
   /** Turn one dial by hand. */
   setParam(i: number, value: number) {
-    if (!this.tools.drag || this.frozen.includes(i) || !Number.isFinite(value)) return;
+    if (!this.tools.drag || this.fixed.includes(i) || !Number.isFinite(value)) return;
     const clamped = Math.max(-DIAL_LIMIT, Math.min(DIAL_LIMIT, value));
     if (clamped === this.params[i]) return;
     this.params[i] = clamped;
@@ -132,9 +143,27 @@ class Game {
     this.changed();
   }
 
+  /** Set several dials together, as when a line is dragged and its weights and bias all change. */
+  setParams(changes: [number, number][]) {
+    if (!this.tools.lines && !this.tools.drag) return;
+    let moved = false;
+    for (const [i, value] of changes) {
+      if (this.fixed.includes(i) || !Number.isFinite(value)) continue;
+      const clamped = Math.max(-DIAL_LIMIT, Math.min(DIAL_LIMIT, value));
+      if (clamped !== this.params[i]) {
+        this.params[i] = clamped;
+        moved = true;
+      }
+    }
+    if (!moved) return;
+    this.diverged = false;
+    this.effort++;
+    this.changed();
+  }
+
   /** Move one dial a single step downhill. */
   nudge(i: number) {
-    if (!this.tools.nudge || this.frozen.includes(i)) return;
+    if (!this.tools.nudge || this.fixed.includes(i)) return;
     this.params[i] -= (this.level.nudgeRate ?? 0.3) * this.evaluation.grad[i];
     this.steps++;
     this.effort++;
@@ -145,7 +174,7 @@ class Game {
   /** Move every dial one step downhill. */
   step() {
     if (!this.tools.step || !this.canStep) return;
-    this.params = descend(this.params, this.evaluation.grad, this.rate, this.frozen);
+    this.params = descend(this.params, this.evaluation.grad, this.rate, this.fixed);
     this.steps++;
     this.effort++;
     const loss = this.loss;
@@ -212,12 +241,13 @@ class Game {
     this.params =
       this.hiddenSize === 0 && this.#shuffles === 0
         ? this.level.start.slice()
-        : freshParams(this.spec, 1000 + this.hiddenSize * 97 + this.#shuffles * 7919);
+        : freshParams(this.spec, seedFor(this.level, this.hiddenSize, this.#shuffles));
     this.steps = 0;
     this.history = [];
     this.diverged = false;
     this.selected = null;
     this.focus = null;
+    this.hover = null;
     this.effort++;
     this.changed();
   }

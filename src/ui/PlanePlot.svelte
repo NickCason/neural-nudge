@@ -1,6 +1,6 @@
 <script lang="ts">
   import { predict, trace } from '../engine/net';
-  import { game } from '../game.svelte';
+  import { DIAL_LIMIT, game } from '../game.svelte';
   import { answerInk, contour } from './format';
 
   const S = 300;
@@ -45,6 +45,161 @@
     }),
   );
 
+  // ---- the hidden neurons' own lines ---------------------------------------------------------
+
+  type Point = [number, number];
+
+  interface HiddenLine {
+    j: number;
+    /** Unit vector toward the neuron's yes side. */
+    n: Point;
+    /** Unit vector along the line. */
+    d: Point;
+    /** The stretch of the line that's inside the picture, if any. */
+    ends: [Point, Point] | null;
+    /** Where the slide handle sits. */
+    pivot: Point;
+    /** Where the swing handle sits, and which way along the line it is from the pivot. */
+    swing: Point;
+    swingSign: number;
+    ticks: [Point, Point][];
+    movable: boolean;
+  }
+
+  const showLines = $derived(!!game.level.show?.lines && game.spec.layers.length > 1);
+  const EDGE = R - 0.08;
+  const inView = (p: Point) => Math.abs(p[0]) <= EDGE && Math.abs(p[1]) <= EDGE;
+
+  /** How far along each line its slide handle sits, measured from the point nearest the middle. */
+  let slide: number[] = [];
+
+  const lines = $derived.by((): HiddenLine[] => {
+    if (!showLines) return [];
+    const width = game.spec.inputs + 1;
+    const out: HiddenLine[] = [];
+    for (let j = 0; j < game.spec.layers[0].size; j++) {
+      const w1 = params[j * width];
+      const w2 = params[j * width + 1];
+      const b = params[j * width + 2];
+      const size = Math.hypot(w1, w2);
+      if (size < 1e-6) continue;
+      const n: Point = [w1 / size, w2 / size];
+      const d: Point = [-n[1], n[0]];
+      const foot: Point = [(-b * w1) / (size * size), (-b * w2) / (size * size)];
+      // clip the line to the picture
+      let lo = -Infinity;
+      let hi = Infinity;
+      for (const k of [0, 1]) {
+        if (Math.abs(d[k]) < 1e-9) {
+          if (Math.abs(foot[k]) > R) lo = Infinity;
+          continue;
+        }
+        const a = (-R - foot[k]) / d[k];
+        const c = (R - foot[k]) / d[k];
+        lo = Math.max(lo, Math.min(a, c));
+        hi = Math.min(hi, Math.max(a, c));
+      }
+      const visible = lo < hi;
+      const at = (t: number): Point => [foot[0] + d[0] * t, foot[1] + d[1] * t];
+      let pivot: Point;
+      if (visible) {
+        const margin = Math.min(0.12, (hi - lo) / 2);
+        pivot = at(Math.max(lo + margin, Math.min(hi - margin, slide[j] ?? 0)));
+      } else {
+        // the line is off the picture: leave its handle at the nearest edge so it can be pulled back
+        pivot = [Math.max(-EDGE, Math.min(EDGE, foot[0])), Math.max(-EDGE, Math.min(EDGE, foot[1]))];
+      }
+      const reach = 0.42;
+      const ahead: Point = [pivot[0] + d[0] * reach, pivot[1] + d[1] * reach];
+      const behind: Point = [pivot[0] - d[0] * reach, pivot[1] - d[1] * reach];
+      const swingSign = !inView(ahead) && inView(behind) ? -1 : 1;
+      const ticks: [Point, Point][] = [];
+      if (visible) {
+        for (let t = Math.ceil(lo / 0.22) * 0.22; t < hi; t += 0.22) {
+          const p = at(t);
+          ticks.push([p, [p[0] + n[0] * 0.055, p[1] + n[1] * 0.055]]);
+        }
+      }
+      out.push({
+        j,
+        n,
+        d,
+        ends: visible ? [at(lo), at(hi)] : null,
+        pivot,
+        swing: swingSign > 0 ? ahead : behind,
+        swingSign,
+        ticks,
+        movable: game.tools.lines && !game.fixed.includes(j * width),
+      });
+    }
+    return out;
+  });
+
+  let svg: SVGSVGElement;
+  let grab: { j: number; kind: 'slide' | 'swing'; pivot: Point; sign: number } | null = $state(null);
+
+  function pointer(e: PointerEvent): Point {
+    const box = svg.getBoundingClientRect();
+    return [((e.clientX - box.left) / box.width) * 2 * R - R, R - ((e.clientY - box.top) / box.height) * 2 * R];
+  }
+
+  /** Put hidden neuron j's line through `through`, facing `n`, keeping how sharply it switches. */
+  function setLine(j: number, n: Point, through: Point) {
+    const width = game.spec.inputs + 1;
+    const size = Math.hypot(game.params[j * width], game.params[j * width + 1]) || 1;
+    let w1 = n[0] * size;
+    let w2 = n[1] * size;
+    let b = -(w1 * through[0] + w2 * through[1]);
+    // If a dial would run off its scale, soften all three together: same line, gentler switch.
+    const over = Math.max(Math.abs(w1), Math.abs(w2), Math.abs(b)) / DIAL_LIMIT;
+    if (over > 1) {
+      w1 /= over;
+      w2 /= over;
+      b /= over;
+    }
+    const round = (v: number) => Math.round(v * 100) / 100;
+    game.setParams([
+      [j * width, round(w1)],
+      [j * width + 1, round(w2)],
+      [j * width + 2, round(b)],
+    ]);
+    // keep the slide handle where the hand is
+    const s2 = w1 * w1 + w2 * w2 || 1;
+    const foot: Point = [(-b * w1) / s2, (-b * w2) / s2];
+    slide[j] = (through[0] - foot[0]) * -n[1] + (through[1] - foot[1]) * n[0];
+  }
+
+  function grabLine(e: PointerEvent, line: HiddenLine, kind: 'slide' | 'swing') {
+    if (!line.movable) return;
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    grab = { j: line.j, kind, pivot: line.pivot, sign: line.swingSign };
+    game.hover = line.j;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function dragLine(e: PointerEvent) {
+    if (!grab) return;
+    const p = pointer(e);
+    const line = lines.find((l) => l.j === grab!.j);
+    if (!line) return;
+    if (grab.kind === 'slide') {
+      setLine(grab.j, line.n, [Math.max(-R, Math.min(R, p[0])), Math.max(-R, Math.min(R, p[1]))]);
+      return;
+    }
+    const dx = (p[0] - grab.pivot[0]) * grab.sign;
+    const dy = (p[1] - grab.pivot[1]) * grab.sign;
+    const length = Math.hypot(dx, dy);
+    if (length < 0.06) return;
+    // the yes side stays on the same hand of the line as it turns
+    setLine(grab.j, [dy / length, -dx / length], grab.pivot);
+  }
+
+  function release() {
+    if (grab) game.hover = null;
+    grab = null;
+  }
+
   let canvas: HTMLCanvasElement;
 
   $effect(() => {
@@ -65,7 +220,15 @@
 
 <div class="plane">
   <canvas bind:this={canvas} width={N} height={N} aria-hidden="true"></canvas>
-  <svg viewBox="0 0 {S} {S}" role="img" aria-label="The dots, coloured by kind, over the network's answer">
+  <svg
+    bind:this={svg}
+    viewBox="0 0 {S} {S}"
+    role="img"
+    aria-label="The dots, coloured by kind, over the network's answer"
+    onpointermove={dragLine}
+    onpointerup={release}
+    onpointercancel={release}
+  >
     {#each [-0.5, 0, 0.5] as g (g)}
       <line class="grid" x1={px(g)} y1="0" x2={px(g)} y2={S} />
       <line class="grid" x1="0" y1={py(g)} x2={S} y2={py(g)} />
@@ -104,6 +267,41 @@
         {/if}
       </g>
     {/each}
+    <!-- each hidden neuron's own line, numbered to match its circle in the network -->
+    {#each lines as line (line.j)}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <g
+        class="hidden-line"
+        class:lit={game.hover === line.j}
+        class:movable={line.movable}
+        onpointerenter={() => (game.hover = line.j)}
+        onpointerleave={() => {
+          if (!grab) game.hover = null;
+        }}
+      >
+        {#if line.ends}
+          <line class="reach" x1={px(line.ends[0][0])} y1={py(line.ends[0][1])} x2={px(line.ends[1][0])} y2={py(line.ends[1][1])} />
+          <line class="stroke" x1={px(line.ends[0][0])} y1={py(line.ends[0][1])} x2={px(line.ends[1][0])} y2={py(line.ends[1][1])} />
+          {#each line.ticks as tick, i (i)}
+            <line class="tick-mark" x1={px(tick[0][0])} y1={py(tick[0][1])} x2={px(tick[1][0])} y2={py(tick[1][1])} />
+          {/each}
+        {/if}
+        {#if line.movable && line.ends}
+          <circle
+            class="swing"
+            cx={px(line.swing[0])}
+            cy={py(line.swing[1])}
+            r="6"
+            onpointerdown={(e) => grabLine(e, line, 'swing')}
+          />
+        {/if}
+        <g class="slide" transform="translate({px(line.pivot[0])},{py(line.pivot[1])})" onpointerdown={(e) => grabLine(e, line, 'slide')}>
+          <circle class="grip" r="16" />
+          <circle class="badge" r="9.5" />
+          <text class="num badge-text" dy="0.35em">{line.j + 1}</text>
+        </g>
+      </g>
+    {/each}
     <text class="tick" x={S - 8} y={S - 10} text-anchor="end">x<tspan dy="3" font-size="8">1</tspan><tspan dy="-3">&#160;across</tspan></text>
     <text class="tick" x="8" y="16">x<tspan dy="3" font-size="8">2</tspan><tspan dy="-3">&#160;up</tspan></text>
   </svg>
@@ -129,6 +327,8 @@
 
   svg {
     touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .grid {
@@ -201,5 +401,70 @@
   .tick {
     fill: var(--dust);
     font-size: 11px;
+    pointer-events: none;
+  }
+
+  .hidden-line .stroke {
+    stroke: var(--sky);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    pointer-events: none;
+  }
+
+  /* a wide invisible stroke, so pointing near a line is enough to light it up */
+  .hidden-line .reach {
+    stroke: transparent;
+    stroke-width: 14;
+  }
+
+  .hidden-line .tick-mark {
+    stroke: var(--sky);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  .hidden-line.lit .stroke {
+    stroke-width: 3;
+    filter: drop-shadow(0 0 6px var(--sky));
+  }
+
+  .hidden-line .grip {
+    fill: transparent;
+  }
+
+  .hidden-line .badge {
+    fill: var(--sky);
+    stroke: var(--board-deep);
+    stroke-width: 1.5;
+  }
+
+  .hidden-line.lit .badge {
+    filter: drop-shadow(0 0 6px var(--sky));
+  }
+
+  .badge-text {
+    fill: var(--board-deep);
+    font-size: 11.5px;
+    font-weight: 700;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+
+  .hidden-line .swing {
+    fill: var(--board-deep);
+    stroke: var(--sky);
+    stroke-width: 2.5;
+  }
+
+  .hidden-line.movable .slide {
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .hidden-line.movable .swing {
+    cursor: crosshair;
+    touch-action: none;
   }
 </style>

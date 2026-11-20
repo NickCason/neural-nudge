@@ -34,12 +34,19 @@
   }
 
   const visible = $derived(game.layout.filter((p) => !game.frozen.includes(p.index)));
-  const compact = $derived(visible.length > 4);
+  // Three sizes of drawing: big dials with names for a few, readable dials for up to nine,
+  // and plain dots when there are too many to label. A level that grows stays at the smallest
+  // size throughout, so nothing jumps when a neuron is added.
+  const scale = $derived<'full' | 'medium' | 'small'>(
+    game.level.grow ? 'small' : visible.length <= 4 ? 'full' : visible.length <= 9 ? 'medium' : 'small',
+  );
+  const compact = $derived(scale !== 'full');
+  const medium = $derived(scale === 'medium');
   const tallest = $derived(Math.max(game.spec.inputs, ...game.spec.layers.map((l) => l.size)));
-  const H = $derived(compact ? 430 : tallest > 1 ? 370 : 270);
-  const nodeR = $derived(compact ? 24 : 34);
-  const inputR = $derived(compact ? 17 : 26);
-  const dialR = $derived(compact ? 10 : 24);
+  const H = $derived(scale === 'small' ? 430 : medium ? 340 : tallest > 1 ? 370 : 270);
+  const nodeR = $derived(scale === 'small' ? 24 : medium ? 30 : 34);
+  const inputR = $derived(scale === 'small' ? 17 : medium ? 22 : 26);
+  const dialR = $derived(scale === 'small' ? 10 : medium ? 16 : 24);
   const outLength = 50;
 
   const columns = $derived.by(() => {
@@ -49,7 +56,7 @@
     return sizes.map((size, column) => {
       const x = sizes.length === 1 ? left : left + ((right - left) * column) / (sizes.length - 1);
       const gap = size > 1 ? Math.min(compact ? 200 : 170, (H - 130) / (size - 1)) : 0;
-      const top = H / 2 - (gap * (size - 1)) / 2 - (compact ? 10 : 28);
+      const top = H / 2 - (gap * (size - 1)) / 2 - (scale === 'small' ? 10 : medium ? 18 : 28);
       return Array.from({ length: size }, (_, row): Node => ({ x, y: top + gap * row, column, row }));
     });
   });
@@ -58,7 +65,7 @@
     visible.map((info): DialPlace => {
       const target = columns[info.layer + 1][info.neuron];
       if (info.kind === 'bias') {
-        const drop = compact ? nodeR + 15 : nodeR + 46;
+        const drop = scale === 'small' ? nodeR + 15 : medium ? nodeR + 25 : nodeR + 46;
         return { info, x: target.x, y: target.y + drop, x1: target.x, y1: target.y, x2: target.x, y2: target.y + drop };
       }
       const source = columns[info.layer][info.from];
@@ -93,10 +100,11 @@
 
   /** Length of the slope arrow, or 0 where the ground is flat. Positive points up (turn the dial up). */
   function arrow(index: number): number {
+    if (game.fixed.includes(index)) return 0;
     const g = game.evaluation.grad[index];
     if (!Number.isFinite(g) || Math.abs(g) < 0.004) return 0;
     const size = Math.min(1, Math.sqrt(Math.abs(g) / 2));
-    const length = compact ? 5 + 9 * size : 9 + 30 * size;
+    const length = scale === 'small' ? 5 + 9 * size : medium ? 6 + 14 * size : 9 + 30 * size;
     return g < 0 ? length : -length;
   }
 
@@ -110,7 +118,7 @@
   function down(e: PointerEvent, index: number) {
     game.selected = index;
     if (game.tools.nudge) return;
-    if (!game.tools.drag) return;
+    if (!game.tools.drag || game.fixed.includes(index)) return;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     drag = { index, y: e.clientY, value: game.params[index] };
     e.preventDefault();
@@ -155,6 +163,8 @@
   }
 
   const canFocus = $derived(game.level.view === 'plane' && game.spec.layers.length > 1);
+  /** Hidden neurons get numbers when their lines are drawn on the plot, so the two can be matched up. */
+  const numbered = $derived(!!game.level.show?.lines && game.spec.layers.length > 1);
 
   function focusNeuron(layer: number, neuron: number) {
     if (!canFocus) return;
@@ -324,7 +334,8 @@
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
   <svg
     class="net"
-    class:compact
+    class:compact={scale === 'small'}
+    class:medium
     viewBox="0 0 {W} {H}"
     role="group"
     aria-label="The network"
@@ -371,6 +382,12 @@
           aria-label={canFocus ? `Show the answer of ${neuronName(game.spec, l, node.row)}` : undefined}
           aria-pressed={canFocus ? isFocused(l, node.row) : undefined}
           onclick={() => focusNeuron(l, node.row)}
+          onpointerenter={() => {
+            if (numbered && l === 0) game.hover = node.row;
+          }}
+          onpointerleave={() => {
+            if (numbered && l === 0) game.hover = null;
+          }}
           onkeydown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
@@ -382,8 +399,17 @@
           {#if isFocused(l, node.row)}
             <circle class="focus-ring" r={nodeR + 6} />
           {/if}
+          {#if numbered && l === 0 && game.hover === node.row}
+            <circle class="hover-ring" r={nodeR + 4} />
+          {/if}
           {#if value !== null}
             <text class="num inside" class:small={compact} dy="0.35em">{num(value)}</text>
+          {/if}
+          {#if numbered && l === 0}
+            <g transform="translate({-nodeR * 0.78},{-nodeR * 0.78})">
+              <circle class="badge" r="9" />
+              <text class="num badge-text" dy="0.35em">{node.row + 1}</text>
+            </g>
           {/if}
         </g>
       {/each}
@@ -411,6 +437,7 @@
         class:selected={game.selected === i}
         class:draggable={game.tools.drag}
         class:nudgeable={game.tools.nudge}
+        class:locked={game.fixed.includes(i)}
         transform="translate({d.x},{d.y})"
         role="slider"
         tabindex="0"
@@ -418,7 +445,7 @@
         aria-valuenow={Math.round(v * 100) / 100}
         aria-valuemin={-DIAL_LIMIT}
         aria-valuemax={DIAL_LIMIT}
-        aria-readonly={!game.tools.drag}
+        aria-readonly={!game.tools.drag || game.fixed.includes(i)}
         onpointerdown={(e) => down(e, i)}
         onpointermove={move}
         onpointerup={up}
@@ -431,7 +458,7 @@
           <circle class="select-ring" r={dialR + 5.5} />
         {/if}
         <circle class="face" r={dialR} />
-        {#if compact}
+        {#if scale === 'small'}
           <circle class="rim" r={dialR} stroke={signColor(v)} />
           <circle r={2 + Math.min(Math.abs(v), 3) * 1.9} fill={signColor(v)} />
         {:else}
@@ -444,17 +471,19 @@
             stroke-dasharray="{sweep(v)} 1000"
             transform="rotate(-90) scale(1,{v < 0 ? -1 : 1})"
           />
-          <text class="num reading" dy="0.35em">{num(v)}</text>
-          <text class="name hand" x={-dialR - 6} y={-dialR + 2} text-anchor="end"><Subs svg text={paramLabel(game.spec, d.info)} /></text>
+          <text class="num reading" class:tight={medium} dy="0.35em">{num(v)}</text>
+          {#if !medium}
+            <text class="name hand" x={-dialR - 6} y={-dialR + 2} text-anchor="end"><Subs svg text={paramLabel(game.spec, d.info)} /></text>
+          {/if}
         {/if}
         {#if a !== 0}
           {@const dir = a > 0 ? -1 : 1}
           {@const length = Math.abs(a)}
           {@const beside = d.info.kind === 'bias'}
-          {@const x = beside ? dialR + (compact ? 7 : 14) : 0}
+          {@const x = beside ? dialR + (scale === 'small' ? 7 : medium ? 9 : 14) : 0}
           {@const from = beside ? (-dir * length) / 2 : dir * (dialR + 6)}
           {@const to = from + dir * length}
-          {@const head = compact ? 3.5 : 6}
+          {@const head = scale === 'small' ? 3.5 : medium ? 4.5 : 6}
           <g class="slope">
             <line x1={x} y1={from} x2={x} y2={to} />
             <path d="M{x - head},{to - dir * head} L{x},{to} L{x + head},{to - dir * head}" />
@@ -619,6 +648,60 @@
     font-size: 13.5px;
     text-anchor: middle;
     pointer-events: none;
+  }
+
+  .reading.tight {
+    font-size: 9.5px;
+  }
+
+  .medium .face {
+    stroke-width: 2.5;
+  }
+
+  .medium .arc {
+    stroke-width: 2.5;
+  }
+
+  .medium .slope {
+    stroke-width: 2;
+  }
+
+  /* A locked dial can be read but not turned. */
+  .dial.locked {
+    cursor: default;
+  }
+
+  .dial.locked .face {
+    stroke-dasharray: 2 3;
+  }
+
+  .dial.locked .arc,
+  .dial.locked .rim {
+    opacity: 0.45;
+    filter: none;
+  }
+
+  .dial.locked .reading {
+    fill: var(--dust);
+  }
+
+  .badge {
+    fill: var(--sky);
+  }
+
+  .badge-text {
+    fill: var(--board-deep);
+    font-size: 11px;
+    font-weight: 700;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+
+  .hover-ring {
+    fill: none;
+    stroke: var(--sky);
+    stroke-width: 2.5;
+    filter: drop-shadow(0 0 6px var(--sky));
   }
 
   .name {

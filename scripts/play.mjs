@@ -168,33 +168,80 @@ check(!(await solved()), 'training does not solve it');
 await button('Pause').click();
 await button("This can't be done").click();
 check(await solved(), 'calling it impossible is the answer');
-await next('Bend the line');
+await next('Two opinions');
 
-console.log('9 Bend the line');
+console.log('9 Two opinions');
 {
-  await button('Add a hidden neuron').click();
-  await button('Add a hidden neuron').click();
-  check((await dials().count()) === 9, 'two hidden neurons make nine dials');
-  let shuffles = 0;
-  for (; shuffles < 6; shuffles++) {
-    await button('Run').click();
-    try {
-      await page.locator('.goal.solved').waitFor({ timeout: 8000 });
-      break;
-    } catch {
-      await button('Shuffle').click();
-    }
+  check((await dials().count()) === 9, 'two hidden neurons and an output make nine dials');
+  const readings = () => page.locator('svg.net g.dial text.reading').allTextContents();
+  const before = await readings();
+  await dials().nth(0).focus();
+  await page.keyboard.press('PageUp');
+  check((await readings())[0] === before[0], 'the hidden neurons are locked');
+  check((await page.locator('.plane .hidden-line').count()) === 2, "both hidden neurons' lines are drawn on the plot");
+  check(await page.getByText('What the output neuron sees').isVisible(), "the output neuron's view is shown");
+  await tuneByHand();
+  check(await solved(), 'solved by turning only the output neuron');
+}
+await next('Move the lines');
+
+console.log('10 Move the lines');
+{
+  const box = await page.locator('.plane svg').boundingBox();
+  const R = 1.1;
+  const at = (x, y) => [box.x + ((x + R) / (2 * R)) * box.width, box.y + ((R - y) / (2 * R)) * box.height];
+  const centre = async (locator) => {
+    const b = await locator.boundingBox();
+    return [b.x + b.width / 2, b.y + b.height / 2];
+  };
+  const drag = async (from, to) => {
+    await page.mouse.move(...from);
+    await page.mouse.down();
+    await page.mouse.move(...to, { steps: 8 });
+    await page.mouse.up();
+  };
+  const reading = async (i) => Number((await page.locator('svg.net g.dial text.reading').nth(i).textContent()).trim().replace('−', '-'));
+  for (const [j, x] of [[0, -0.35], [1, 0.35]]) {
+    const line = page.locator('.plane .hidden-line').nth(j);
+    // stand the line upright: swing its small handle to straight above the round one
+    const pivot = await centre(line.locator('.badge'));
+    await drag(await centre(line.locator('.swing')), [pivot[0], pivot[1] - box.height * 0.3]);
+    // then slide it to one side of the yellow stripe
+    await drag(await centre(line.locator('.badge')), at(x, 0));
   }
-  check(await solved(), `solved with two hidden neurons after ${shuffles} shuffles`);
-  await page.locator('svg.net g.neuron').nth(0).click();
-  check(await page.getByText('Showing hidden neuron 1').isVisible(), 'clicking a hidden neuron shows its own answer');
+  check(Math.abs(await reading(1)) < 0.3, 'swinging a line upright turned its second weight to about zero');
+  check(await solved(), 'solved by dragging the two lines either side of the stripe');
+}
+await next('Hands off again');
+
+console.log('11 Hands off again');
+await button('Run').click();
+await page.locator('.goal.solved').waitFor({ timeout: 30000 });
+check(true, 'training finds the two lines on its own');
+await next('Fence it in');
+
+console.log('12 Fence it in');
+{
+  check((await dials().count()) === 9, 'starts with two hidden neurons');
+  await button('Run').click();
+  await page.waitForTimeout(4000);
+  check(!(await solved()), 'two lines cannot surround the middle');
+  await button('Pause').click();
+  await button('Add a hidden neuron').click();
+  check((await dials().count()) === 13, 'a third hidden neuron makes thirteen dials');
+  await button('Run').click();
+  await page.locator('.goal.solved').waitFor({ timeout: 30000 });
+  check(true, 'three lines fence it in');
+  await page.locator('svg.net g.neuron').nth(1).hover();
+  check((await page.locator('.plane .hidden-line.lit').count()) === 1, 'pointing at a hidden neuron lights up its line');
+  await page.mouse.move(5, 5);
   check(await page.getByText("That's every level so far").isVisible(), 'the last level says what comes next');
-  await page.screenshot({ path: 'shots/played-9.png' });
+  await page.screenshot({ path: 'shots/played-12.png' });
 }
 
 await page.reload();
 await page.waitForSelector('svg.net');
-check((await page.locator('.pip.done').count()) === 9, 'progress survives a reload');
+check((await page.locator('.pip.done').count()) === 12, 'progress survives a reload');
 
 console.log(problems.length ? `console problems:\n${problems.join('\n')}` : 'no console errors');
 await browser.close();

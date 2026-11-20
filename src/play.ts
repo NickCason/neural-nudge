@@ -13,6 +13,11 @@ export function specFor(level: Level, hidden: number): NetSpec {
   };
 }
 
+/** The seed for a level's random dials, given how big the network is and how often it's been shuffled. */
+export function seedFor(level: Level, hidden: number, shuffles: number): number {
+  return (level.seed ?? 1000) + hidden * 97 + shuffles * 7919;
+}
+
 /** Random starting values. Weights are spread wide enough that neurons start out different. */
 export function freshParams(spec: NetSpec, seed: number): number[] {
   const next = rng(seed);

@@ -16,6 +16,8 @@ export interface Tools {
   shuffle: boolean;
   /** Add or remove hidden neurons. */
   grow: boolean;
+  /** Drag the hidden neurons' lines around on the plot. */
+  lines: boolean;
 }
 
 export type ToolName = keyof Tools;
@@ -40,6 +42,8 @@ export interface Level {
   start: number[];
   /** Parameters held fixed and not drawn. */
   hidden?: number[];
+  /** Parameters drawn but held fixed: you can read them, not change them, and training skips them. */
+  locked?: number[];
   data: Sample[];
 
   /** 'line': one input against one output. 'plane': two inputs, coloured by output. */
@@ -59,5 +63,15 @@ export interface Level {
   runSpeed?: number;
   /** What this level calls the number being minimised. */
   errorName: 'error' | 'loss';
-  grow?: { max: number; act: Activation };
+  /** Let the player add hidden neurons. `start` is how many there are to begin with. */
+  grow?: { max: number; act: Activation; start?: number };
+  /** Base for the random starting dials, chosen so the first run of a level behaves. */
+  seed?: number;
+  /** Extra views of what the hidden neurons are doing. */
+  show?: {
+    /** Draw each hidden neuron's line on the plot. */
+    lines?: boolean;
+    /** Show the dots where the hidden neurons put them, which is all the output neuron sees. */
+    hiddenSpace?: boolean;
+  };
 }
