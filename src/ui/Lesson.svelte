@@ -69,7 +69,13 @@
     border-radius: 10px;
   }
 
+  .lesson > header {
+    order: -2;
+  }
+
+  /* Once solved, the card moves up under the title, so it's on screen however long the lesson is. */
   .goal.solved {
+    order: -1;
     border-style: solid;
     border-color: var(--sun);
     background: color-mix(in srgb, var(--sun) 7%, transparent);

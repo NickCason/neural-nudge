@@ -70,6 +70,27 @@ await page.waitForSelector('svg.net');
 console.log('1 One dial');
 check((await title()) === 'One dial', 'starts on level 1');
 check(await page.getByRole('button', { name: /^Level 2/ }).isDisabled(), 'level 2 is locked at first');
+{
+  // the main way to turn a dial: tap its arrows, or hold one down
+  const value = async () => Number((await page.locator('svg.net g.dial text.reading').first().textContent()).trim().replace('\u2212', '-'));
+  const up = page.locator('svg.net g.dial g.step').nth(0);
+  const down = page.locator('svg.net g.dial g.step').nth(1);
+  const start = await value();
+  await up.click();
+  check(Math.abs((await value()) - (start + 0.05)) < 1e-9, 'tapping the up arrow nudges the dial up by a little');
+  await down.click();
+  await down.click();
+  check(Math.abs((await value()) - (start - 0.05)) < 1e-9, 'tapping the down arrow nudges it down');
+  const box = await up.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1200);
+  await page.mouse.up();
+  const held = await value();
+  check(held > start + 0.4, `holding the arrow keeps turning it (${start} to ${held})`);
+  await page.waitForTimeout(300);
+  check((await value()) === held, 'and it stops when released');
+}
 await tuneByHand();
 check(await solved(), 'solved by turning the dial');
 await next('Two dials');
@@ -123,9 +144,12 @@ console.log('4 Which way is down');
   const before = await loss();
   await page.keyboard.press('PageUp');
   check((await loss()) === before, 'dials cannot be turned by hand');
+  check((await page.locator('svg.net g.dial g.step').count()) === 2, 'each dial offers exactly one arrow, the downhill one');
   let clicks = 0;
   while (!(await solved()) && clicks < 30) {
-    await dials().nth(clicks % 2).click();
+    // tap whichever arrows are on offer; a dial on flat ground shows none
+    const offered = page.locator('svg.net g.dial g.step');
+    await offered.nth(clicks % (await offered.count())).click();
     clicks++;
   }
   check(await solved(), `solved in ${clicks} nudges`);

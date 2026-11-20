@@ -146,6 +146,11 @@ class Game {
     this.changed();
   }
 
+  /** Nudge one dial by a small amount, as the arrows on a dial do. */
+  turn(i: number, delta: number) {
+    this.setParam(i, Math.round((this.params[i] + delta) * 100) / 100);
+  }
+
   /** Set several dials together, as when a line is dragged and its weights and bias all change. */
   setParams(changes: [number, number][]) {
     if (!this.tools.lines && !this.tools.drag) return;

@@ -23,7 +23,7 @@ export const levels: Level[] = [
     text: [
       'This is the smallest machine that can learn anything. A number goes in on the left, gets multiplied by the dial, and comes out on the right as a guess.',
       'Each dot is an example: for this input, the answer should be this high. The chalk line is what the machine guesses for every input.',
-      'Drag the dial up or down. The squares show how far off each guess is. Smaller squares, better machine.',
+      'Tap the arrows on the dial to turn it up or down, or hold one to keep going. The squares show how far off each guess is. Smaller squares, better machine.',
     ],
     goalText: 'Get the error below 0.01.',
     winText:
@@ -83,9 +83,9 @@ export const levels: Level[] = [
     id: 'which-way-is-down',
     title: 'Which way is down',
     text: [
-      'The dials are locked. In their place you get one piece of information: the slope of the ground where you stand.',
-      'Each arrow says which way to turn its dial to lower the loss, and how much that dial matters right now. A long arrow means steep ground.',
-      "Click an arrow to nudge its dial a little that way. The arrows change after every nudge, because you're standing somewhere new.",
+      'The dials only turn one way now. Each shows a single arrow: the direction that lowers the loss from where you stand.',
+      'More arrowheads mean steeper ground, so that dial matters more right now.',
+      "Tap an arrow to nudge its dial that way. The arrows change after every nudge, because you're standing somewhere new.",
     ],
     goalText: 'Loss below 0.01, using only nudges.',
     winText:
@@ -180,7 +180,7 @@ export const levels: Level[] = [
     title: 'The wall',
     text: [
       'Same neuron, same tools, four clumps of dots. Yellow sits in two opposite corners and pink in the other two.',
-      'Use anything you like. Drag the dials, follow the arrows, let it run.',
+      'Use anything you like. Turn the dials, follow the blue arrows, let it run.',
     ],
     goalText: 'Get every dot on the right side.',
     winText:

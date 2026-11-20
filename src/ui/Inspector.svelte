@@ -2,6 +2,7 @@
   import { DIAL_LIMIT, game } from '../game.svelte';
   import { num } from './format';
   import { paramExplain, paramTitle } from './names';
+  import { repeat } from './repeat';
   import Subs from './Subs.svelte';
 
   const info = $derived(game.selected === null ? null : (game.layout[game.selected] ?? null));
@@ -26,16 +27,20 @@
         <dt>Value</dt>
         <dd>
           {#if game.tools.drag && !game.fixed.includes(info.index)}
-            <input
-              class="num"
-              type="number"
-              step="0.05"
-              min={-DIAL_LIMIT}
-              max={DIAL_LIMIT}
-              value={Math.round(value * 100) / 100}
-              aria-label="Value"
-              onchange={(e) => game.setParam(info.index, Number(e.currentTarget.value))}
-            />
+            <span class="stepper">
+              <button aria-label="Nudge down" use:repeat={() => game.turn(info.index, -0.05)}>−</button>
+              <input
+                class="num"
+                type="number"
+                step="0.05"
+                min={-DIAL_LIMIT}
+                max={DIAL_LIMIT}
+                value={Math.round(value * 100) / 100}
+                aria-label="Value"
+                onchange={(e) => game.setParam(info.index, Number(e.currentTarget.value))}
+              />
+              <button aria-label="Nudge up" use:repeat={() => game.turn(info.index, 0.05)}>+</button>
+            </span>
           {:else}
             <span class="num">{num(value)}</span>
           {/if}
@@ -56,9 +61,9 @@
   {:else}
     <p class="empty">
       {#if game.tools.nudge}
-        Click a dial to nudge it downhill.
+        Tap a dial's arrow to nudge it downhill.
       {:else if game.tools.drag}
-        Drag a dial up or down to turn it. Click one to see what it does.
+        Tap a dial's arrows to nudge it, or hold one down. Click a dial to see what it does.
       {:else}
         Click a dial to see what it does.
       {/if}
@@ -105,6 +110,30 @@
   dd {
     margin: 0;
     font-size: var(--step-0);
+  }
+
+  .stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .stepper button {
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border: 1.5px solid var(--dust);
+    border-radius: 50%;
+    background: transparent;
+    font-size: var(--step-1);
+    line-height: 1;
+    cursor: pointer;
+    touch-action: none;
+  }
+
+  .stepper button:hover {
+    background: var(--board-lift);
+    border-color: var(--chalk);
   }
 
   input {

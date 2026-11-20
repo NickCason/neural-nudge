@@ -6,6 +6,7 @@
   import { answerInk, num, splitSubs } from './format';
   import { inputName, neuronName, paramLabel, paramTitle } from './names';
   import { paint } from './netPaint';
+  import { repeat } from './repeat';
   import type { NeuronPaint, WirePaint } from './netPaint';
   import Subs from './Subs.svelte';
 
@@ -70,7 +71,9 @@
       }
       const source = columns[info.layer][info.from];
       const fanOut = columns[info.layer + 1].length;
-      const t = compact && fanOut > 1 ? 0.3 + 0.13 * info.from : 0.5;
+      const fanIn = columns[info.layer].length;
+      // Spread the dials along their wires so their arrows never sit on top of each other.
+      const t = compact && fanOut > 1 ? 0.3 + 0.13 * info.from : compact ? 0.5 : 0.5 + (info.from - (fanIn - 1) / 2) * 0.17;
       return {
         info,
         x: source.x + (target.x - source.x) * t,
@@ -98,14 +101,44 @@
     return v > 0 ? 'var(--sun)' : 'var(--rose)';
   }
 
-  /** Length of the slope arrow, or 0 where the ground is flat. Positive points up (turn the dial up). */
-  function arrow(index: number): number {
-    if (game.fixed.includes(index)) return 0;
+  /**
+   * Which way is downhill for a dial, and how steep: +1 means turn it up, -1 means turn it down.
+   * Steepness is 1 to 3 arrowheads. Null where the ground is flat or the dial can't move.
+   */
+  function steep(index: number): { dir: number; heads: number } | null {
+    if (!game.tools.hints || game.fixed.includes(index)) return null;
     const g = game.evaluation.grad[index];
-    if (!Number.isFinite(g) || Math.abs(g) < 0.004) return 0;
+    if (!Number.isFinite(g) || Math.abs(g) < 0.004) return null;
     const size = Math.min(1, Math.sqrt(Math.abs(g) / 2));
-    const length = scale === 'small' ? 5 + 9 * size : medium ? 6 + 14 * size : 9 + 30 * size;
-    return g < 0 ? length : -length;
+    return { dir: g < 0 ? 1 : -1, heads: size > 0.6 ? 3 : size > 0.25 ? 2 : 1 };
+  }
+
+  /** Size and placement of the nudge arrows for the current drawing size. */
+  const arrows = $derived(
+    scale === 'full'
+      ? { half: 7.5, tall: 5.5, off: 13, gap: 7.5, hitW: 34, hitH: 20 }
+      : medium
+        ? { half: 5.5, tall: 4, off: 9, gap: 5.5, hitW: 26, hitH: 15 }
+        : { half: 4.5, tall: 3.2, off: 8, gap: 4.5, hitW: 22, hitH: 13 },
+  );
+
+  /** Where a dial's up (+1) or down (-1) arrow sits: above and below a weight, stacked beside a bias. */
+  function arrowAt(d: DialPlace, dir: number): { x: number; y: number } {
+    if (d.info.kind === 'bias') return { x: dialR + arrows.off + arrows.half - 3, y: -dir * (arrows.tall / 2 + 4) };
+    return { x: 0, y: -dir * (dialR + arrows.off) };
+  }
+
+  const chevron = (dir: number) =>
+    `M${-arrows.half},${(dir * arrows.tall) / 2} L0,${(-dir * arrows.tall) / 2} L${arrows.half},${(dir * arrows.tall) / 2}`;
+
+  /** A press on a dial's arrow: free turning repeats while held, a slope-only nudge happens once. */
+  function press(index: number, dir: number, tick: number) {
+    game.selected = index;
+    if (game.tools.nudge) {
+      if (tick === 0) game.nudge(index);
+      return;
+    }
+    game.turn(index, dir * 0.05);
   }
 
   /** How far round its ring a dial's arc reaches. */
@@ -431,7 +464,10 @@
     {#each dials as d (d.info.index)}
       {@const i = d.info.index}
       {@const v = game.params[i]}
-      {@const a = game.tools.hints ? arrow(i) : 0}
+      {@const fixed = game.fixed.includes(i)}
+      {@const slope = steep(i)}
+      {@const free = game.tools.drag && !fixed}
+      {@const only = game.tools.nudge && !fixed}
       <g
         class="dial"
         class:selected={game.selected === i}
@@ -453,7 +489,7 @@
         onclick={() => click(i)}
         onkeydown={(e) => key(e, i)}
       >
-        <circle class="hit" r={game.tools.nudge && !compact ? dialR + 14 : Math.max(dialR + 4, 18)} />
+        <circle class="hit" r={free || only ? dialR + arrows.off + arrows.tall + 3 : Math.max(dialR + 4, 18)} />
         {#if game.selected === i}
           <circle class="select-ring" r={dialR + 5.5} />
         {/if}
@@ -476,18 +512,36 @@
             <text class="name hand" x={-dialR - 6} y={-dialR + 2} text-anchor="end"><Subs svg text={paramLabel(game.spec, d.info)} /></text>
           {/if}
         {/if}
-        {#if a !== 0}
-          {@const dir = a > 0 ? -1 : 1}
-          {@const length = Math.abs(a)}
-          {@const beside = d.info.kind === 'bias'}
-          {@const x = beside ? dialR + (scale === 'small' ? 7 : medium ? 9 : 14) : 0}
-          {@const from = beside ? (-dir * length) / 2 : dir * (dialR + 6)}
-          {@const to = from + dir * length}
-          {@const head = scale === 'small' ? 3.5 : medium ? 4.5 : 6}
-          <g class="slope">
-            <line x1={x} y1={from} x2={x} y2={to} />
-            <path d="M{x - head},{to - dir * head} L{x},{to} L{x + head},{to - dir * head}" />
-          </g>
+        <!-- the nudge arrows: tap to turn the dial a little, hold to keep going -->
+        <!-- where a dial can't be turned, the blue downhill arrow still shows, as information only -->
+        {#if free || only || slope}
+          {#each [1, -1] as dir (dir)}
+            {@const lit = slope?.dir === dir}
+            {#if free || lit}
+              {@const at = arrowAt(d, dir)}
+              {@const heads = lit ? slope!.heads : 1}
+              <g
+                class="step"
+                class:lit
+                class:always={scale === 'full'}
+                class:info={!free && !only}
+                transform="translate({at.x},{at.y})"
+                aria-hidden="true"
+                use:repeat={(tick) => press(i, dir, tick)}
+              >
+                <rect
+                  class="hit"
+                  x={-arrows.hitW / 2}
+                  y={dir > 0 ? -arrows.hitH / 2 - (heads - 1) * arrows.gap : -arrows.hitH / 2}
+                  width={arrows.hitW}
+                  height={arrows.hitH + (heads - 1) * arrows.gap}
+                />
+                {#each { length: heads } as _, k (k)}
+                  <path d={chevron(dir)} transform="translate(0,{-dir * k * arrows.gap})" opacity={1 - k * 0.28} />
+                {/each}
+              </g>
+            {/if}
+          {/each}
         {/if}
       </g>
     {/each}
@@ -662,10 +716,6 @@
     stroke-width: 2.5;
   }
 
-  .medium .slope {
-    stroke-width: 2;
-  }
-
   /* A locked dial can be read but not turned. */
   .dial.locked {
     cursor: default;
@@ -710,22 +760,59 @@
     pointer-events: none;
   }
 
-  .slope {
-    stroke: var(--sky);
+  .step {
+    cursor: pointer;
+    touch-action: none;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s;
+  }
+
+  /* With a few dials the arrows are always there. With many, they show on the dial you point at
+     or pick, and the blue downhill arrow shows regardless because it is information. */
+  .step.always,
+  .step.lit,
+  .dial:hover .step,
+  .dial.selected .step,
+  .dial:focus-visible .step {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .step.info {
+    pointer-events: none;
+  }
+
+  .step path {
+    fill: none;
+    stroke: var(--dust);
     stroke-width: 2.5;
     stroke-linecap: round;
     stroke-linejoin: round;
-    fill: none;
-    pointer-events: none;
+  }
+
+  .medium .step path {
+    stroke-width: 2;
+  }
+
+  .compact .step path {
+    stroke-width: 1.75;
+  }
+
+  .step:hover path {
+    stroke: var(--chalk);
+  }
+
+  .step:active path {
+    stroke: #fff;
+  }
+
+  .step.lit path {
+    stroke: var(--sky);
     filter: drop-shadow(0 0 4px var(--sky));
   }
 
-  .compact .slope {
-    stroke-width: 1.5;
-  }
-
-  .dial.nudgeable:hover .slope,
-  .dial.nudgeable:focus-visible .slope {
+  .step.lit:hover path {
     stroke: var(--chalk);
   }
 </style>

@@ -13,7 +13,8 @@
     "e2e": "node scripts/play.mjs",
     "shots": "node scripts/shots.mjs",
     "icons": "node scripts/icons.mjs",
-    "deploy": "bash scripts/deploy.sh"
+    "deploy": "bash scripts/deploy.sh",
+    "gallery": "node scripts/gallery.mjs"
   },
   "devDependencies": {
     "@fontsource-variable/recursive": "^5.3.0",
