@@ -23,7 +23,7 @@
   const R = $derived(whole ? whole.range : DIAL_LIMIT);
   const names = $derived(whole ? whole.names : (['weight from x1', 'weight from x2', 'bias'] as [string, string, string]));
   /** Settings sampled along each edge. Fewer when the shells have to be redrawn as other dials move. */
-  const G = $derived(whole ? 21 : 13);
+  const G = $derived(whole ? 21 : game.tools.step ? 13 : 17);
 
   const points = $derived.by((): Point[] => {
     if (whole) return [{ badge: 0, axes: whole.axes }];
@@ -57,6 +57,8 @@
   }
 
   let dots = $state.raw<Dot[]>([]);
+  /** The most dots the active neuron can get right from anywhere in the box, with the rest held still. */
+  let best = $state(0);
 
   function shells(axes: [number, number, number]): Dot[] {
     const level = game.level;
@@ -64,7 +66,8 @@
     const p = [...game.params];
     const total = level.data.length;
     const n = G;
-    const cells: { x: number; y: number; z: number; loss: number; won: boolean }[] = [];
+    const counting = level.goal.kind !== 'loss';
+    const cells: { x: number; y: number; z: number; loss: number; right: number }[] = [];
     for (let i = 0; i < n; i++) {
       p[axes[0]] = -R + (2 * R * i) / (n - 1);
       for (let j = 0; j < n; j++) {
@@ -76,7 +79,7 @@
             z: (j / (n - 1)) * 2 - 1,
             y: (k / (n - 1)) * 2 - 1,
             loss: lossOnly(spec, p, level.data, level.loss),
-            won: level.goal.kind === 'loss' ? false : countCorrect(spec, p, level.data) === total,
+            right: counting ? countCorrect(spec, p, level.data) : 0,
           });
         }
       }
@@ -86,9 +89,14 @@
     const rank = new Float32Array(cells.length);
     order.forEach((index, r) => (rank[index] = r / cells.length));
     const thick = n >= 20 ? 0.011 : 0.022;
+    // One point for the whole machine glows only where the goal is met. One neuron among several
+    // glows wherever it does as well as it possibly can alone, which is where to aim it next.
+    const top = cells.reduce((m, c) => Math.max(m, c.right), 0);
+    best = top;
+    const bar = whole ? total : top;
     const out: Dot[] = [];
     cells.forEach((c, i) => {
-      if (c.won) {
+      if (counting && c.right === bar) {
         out.push({ x: c.x, y: c.y, z: c.z, shell: -1 });
         return;
       }
@@ -242,6 +250,14 @@
 
       places.forEach((b, k) => {
         const lead = k === active;
+        // every setting along the line from the middle through a point draws the same line on the
+        // plot, only sharper the further out it is
+        if (!whole) {
+          const far = 1 / Math.max(Math.abs(b[0]), Math.abs(b[1]), Math.abs(b[2]), 1e-6);
+          ctx.strokeStyle = `rgba(104,220,255,${lead ? 0.4 : 0.22})`;
+          ctx.lineWidth = Math.max(1, size / 380);
+          line([0, 0, 0], [b[0] * far, b[1] * far, b[2] * far]);
+        }
         // where it has been
         const trail = trails[k] ?? [];
         if (trail.length > 1) {
@@ -392,9 +408,15 @@
     {#if whole}
       The machine is the white point. Drag to turn the box.
     {:else}
-      Each numbered point is one hidden neuron, placed by its two weights and its bias. Further from the middle means a
-      sharper line. The shells and glow are for neuron {active + 1}, with every other dial held still. Point at
-      another neuron to switch.
+      Each numbered point is one hidden neuron, placed by its two weights and its bias. Anywhere along the line from
+      the middle through a point is the same line on the plot, sharper the further out.
+      {#if best >= game.level.data.length}
+        The glow is where neuron {active + 1} gets every dot right, with the other dials left as they are.
+      {:else}
+        The glow is where neuron {active + 1} does the best it can alone: {best} of {game.level.data.length} dots right,
+        with the other dials left as they are. Move it there, then point at another neuron to see where that one
+        should go.
+      {/if}
     {/if}
   </figcaption>
 </figure>
