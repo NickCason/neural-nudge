@@ -202,11 +202,11 @@ export const levels: Level[] = [
     text: [
       "Here are two neurons, each drawing its own line across the corners that beat you. Neither is right alone. They're called hidden neurons, because their answers never leave the machine.",
       "Their answers go to a third neuron instead. It can't see where a dot is any more. All it gets is two numbers per dot: what neuron 1 said and what neuron 2 said, each running from \u22121 for no to +1 for yes.",
-      "The lower picture is the dots as the output neuron sees them. The yellow ones sit where 1 says yes and 2 says no. Turn the output neuron's three dials until it says yes only there.",
+      'The two lines cut the dots into three groups, listed under the machine. The output neuron multiplies each answer by a weight, adds its bias, and says yes if the total comes out above zero. Turn its three dials until every group gets the right answer.',
     ],
     goalText: 'Get every dot on the right side.',
     winText:
-      'Look at what the output neuron did. It drew one straight line, like always. But it drew it on the lower picture, where the hidden neurons had already moved the yellow dots into a corner of their own. One straight cut down there comes out as two cuts up top.',
+      "A positive weight means 'I agree with this neuron' and a negative one means 'I go the other way'. One neuron couldn't split these corners. Three can, because two of them sort the dots into groups first, and the third only has to pick the right groups.",
     spec: twoHidden,
     loss: 'bce',
     start: [4, 4, 2, 4, 4, -2, 0.6, 0.6, 0.2],
@@ -216,7 +216,7 @@ export const levels: Level[] = [
     goal: { kind: 'allCorrect' },
     tools: { drag: true },
     errorName: 'loss',
-    show: { lines: true, hiddenSpace: true },
+    show: { lines: true, tally: true },
   },
   {
     id: 'move-the-lines',
@@ -224,11 +224,11 @@ export const levels: Level[] = [
     text: [
       'The output neuron keeps the rule you just gave it: yes where 1 says yes and 2 says no. Its dials are locked this time, and the dots are different.',
       "So change what the hidden neurons say. Drag a line by its round handle to slide it, or by its small handle to swing it. The ticks mark its yes side. Watch the dials while you drag: a line's direction is its two weights, and its position is its bias.",
-      'Keep an eye on the lower picture. Every time a line moves, the dots move there.',
+      "Watch the groups under the machine. A group with both kinds in it can't be answered right, whatever the output neuron does. Move the lines until no group is mixed.",
     ],
     goalText: 'Get every dot on the right side.',
     winText:
-      "The rule on top never changed. You solved a new problem only by changing where the hidden neurons draw their lines, which changes where every dot lands in the lower picture. Rearranging the dots until one straight cut works: that's the whole job of a hidden layer.",
+      "The rule on top never changed. You solved a new problem only by changing where the hidden neurons draw their lines, so the dots fall into groups the rule gets right. Sorting the dots into clean groups: that's the whole job of a hidden layer.",
     spec: twoHidden,
     loss: 'bce',
     start: [4, 4, 2, 4, 4, -2, 3, -3, -2],
@@ -246,19 +246,19 @@ export const levels: Level[] = [
     tools: { drag: true, lines: true },
     fresh: ['lines'],
     errorName: 'loss',
-    show: { lines: true, hiddenSpace: true },
+    show: { lines: true, tally: true },
   },
   {
     id: 'hands-off-again',
     title: 'Hands off again',
     text: [
       'Back to the corners. All nine dials start out random and none of them are locked. You have Step and Run.',
-      "Training doesn't know about lines or pictures. It measures nine slopes and steps downhill, the same as it did with two dials. Watch what that does to the two lines, and to the lower picture.",
+      "Training doesn't know about lines or groups. It measures nine slopes and steps downhill, the same as it did with two dials. Watch what that does to the two lines, and to the groups.",
       'If it settles somewhere useless, shuffle. That gives every dial a fresh random start, and some starts are luckier than others.',
     ],
     goalText: 'Get every dot on the right side.',
     winText:
-      "Nobody told the hidden neurons to bracket the yellow dots. Stepping downhill on the loss put the lines there, because that's what makes the lower picture splittable by one straight cut.",
+      "Nobody told the hidden neurons to bracket the yellow dots. Stepping downhill on the loss put the lines there, because clean groups are what let the output neuron get every dot right.",
     spec: twoHidden,
     loss: 'bce',
     start: freshParams(twoHidden, 2),
@@ -271,7 +271,7 @@ export const levels: Level[] = [
     runSpeed: 12,
     seed: 500,
     errorName: 'loss',
-    show: { lines: true, hiddenSpace: true },
+    show: { lines: true, tally: true },
   },
   {
     id: 'fence-it-in',

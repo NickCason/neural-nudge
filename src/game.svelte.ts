@@ -51,6 +51,8 @@ class Game {
   probe = $state<number | null>(null);
   /** Neuron whose answer the plane is showing; null means the output. */
   focus = $state<{ layer: number; neuron: number } | null>(null);
+  /** Dots to pick out on the plot, as when a row of the groups table is pointed at. */
+  spotlight = $state<number[] | null>(null);
   /** Hidden neuron being pointed at, so its line and its circle can light up together. */
   hover = $state<number | null>(null);
   done = $state<string[]>(loadDone());
@@ -127,6 +129,7 @@ class Game {
     this.probe = null;
     this.focus = null;
     this.hover = null;
+    this.spotlight = null;
     this.#shuffles = 0;
     this.trail = level.hill ? [[level.start[level.hill.x], level.start[level.hill.y]]] : [];
     this.#startLoss = evaluate(specFor(level, this.hiddenSize), this.params, level.data, level.loss).loss;

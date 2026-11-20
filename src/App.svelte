@@ -2,7 +2,6 @@
   import { game } from './game.svelte';
   import { neuronName } from './ui/names';
   import Burst from './ui/Burst.svelte';
-  import HiddenSpace from './ui/HiddenSpace.svelte';
   import HillPlot from './ui/HillPlot.svelte';
   import Inspector from './ui/Inspector.svelte';
   import Lesson from './ui/Lesson.svelte';
@@ -11,6 +10,7 @@
   import NetworkView from './ui/NetworkView.svelte';
   import PlanePlot from './ui/PlanePlot.svelte';
   import Readout from './ui/Readout.svelte';
+  import Tally from './ui/Tally.svelte';
   import ToolTray from './ui/ToolTray.svelte';
 
   // The level lives in the address, so a level can be linked to and the back button works.
@@ -29,9 +29,9 @@
   });
 
   const showHill = $derived(game.level.hill !== undefined && game.hiddenSize === 0);
-  /** The output neuron's view only fits on a flat picture when there are exactly two hidden neurons. */
-  const showSeen = $derived(
-    !!game.level.show?.hiddenSpace && game.spec.layers.length === 2 && game.spec.layers[0].size === 2,
+  /** The table of groups only makes sense with exactly two hidden neurons. */
+  const showTally = $derived(
+    !!game.level.show?.tally && game.spec.layers.length === 2 && game.spec.layers[0].size === 2,
   );
 </script>
 
@@ -58,18 +58,8 @@
       {#if showHill}
         <div class="hill-wrap"><HillPlot /></div>
       {/if}
-      {#if showSeen}
-        <div class="seen">
-          <HiddenSpace />
-          <div class="seen-words">
-            <h2>What the output neuron sees</h2>
-            <p>
-              The same dots, placed by what the hidden neurons said about them. Across is neuron 1's answer, up is
-              neuron 2's.
-            </p>
-            <p>In here the output neuron draws one straight line, and that's all it ever does.</p>
-          </div>
-        </div>
+      {#if showTally}
+        <Tally />
       {/if}
     </section>
 
@@ -186,26 +176,6 @@
     align-content: start;
   }
 
-  .seen {
-    display: grid;
-    grid-template-columns: minmax(0, 19rem) minmax(0, 1fr);
-    gap: 1.25rem;
-    align-items: start;
-  }
-
-  .seen-words {
-    display: grid;
-    gap: 0.6rem;
-    font-size: var(--step--1);
-    color: var(--dust);
-  }
-
-  .seen-words h2 {
-    font-size: var(--step-0);
-    font-weight: 600;
-    color: var(--chalk);
-  }
-
   .hill-wrap {
     max-width: 26rem;
     justify-self: center;
@@ -237,11 +207,6 @@
     }
 
     .plots {
-      max-width: 26rem;
-    }
-
-    .seen {
-      grid-template-columns: minmax(0, 1fr);
       max-width: 26rem;
     }
   }

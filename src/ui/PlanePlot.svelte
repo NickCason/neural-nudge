@@ -257,6 +257,9 @@
         }}
       >
         <circle class="hit" cx={p.x} cy={p.y} r="11" />
+        {#if game.spotlight?.includes(p.i)}
+          <circle class="spot" cx={p.x} cy={p.y} r="11.5" />
+        {/if}
         {#if p.wrong}
           <circle class="wrong" cx={p.x} cy={p.y} r="10" />
         {/if}
@@ -391,6 +394,12 @@
       transform: scale(1.25);
       opacity: 0.35;
     }
+  }
+
+  .spot {
+    fill: color-mix(in srgb, var(--sky) 22%, transparent);
+    stroke: var(--sky);
+    stroke-width: 2;
   }
 
   .point.probed .yes,

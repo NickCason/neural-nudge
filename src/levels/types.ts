@@ -71,7 +71,7 @@ export interface Level {
   show?: {
     /** Draw each hidden neuron's line on the plot. */
     lines?: boolean;
-    /** Show the dots where the hidden neurons put them, which is all the output neuron sees. */
-    hiddenSpace?: boolean;
+    /** List the groups the hidden lines cut the dots into, and what the output neuron makes of each. */
+    tally?: boolean;
   };
 }

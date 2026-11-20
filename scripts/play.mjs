@@ -179,9 +179,11 @@ console.log('9 Two opinions');
   await page.keyboard.press('PageUp');
   check((await readings())[0] === before[0], 'the hidden neurons are locked');
   check((await page.locator('.plane .hidden-line').count()) === 2, "both hidden neurons' lines are drawn on the plot");
-  check(await page.getByText('What the output neuron sees').isVisible(), "the output neuron's view is shown");
+  check((await page.locator('.tally tbody tr').count()) === 3, 'the two lines cut the dots into three groups, listed in a table');
+  check((await page.locator('.plane').count()) === 1 && (await page.locator('.space').count()) === 0, 'there is only one graph');
   await tuneByHand();
   check(await solved(), 'solved by turning only the output neuron');
+  check((await page.locator('.tally .right').count()) === 3, 'every group is marked right once it is solved');
 }
 await next('Move the lines');
 
